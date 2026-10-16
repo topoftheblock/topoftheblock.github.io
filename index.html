@@ -1,0 +1,2053 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Night Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="An empty trading floor at night, 45 floors above Frankfurt. The terminal on the desk holds the site.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Caveat:wght@600&family=Barlow+Semi+Condensed:wght@500;700&display=swap">
+<style>
+/* Layout: one full-bleed WebGL scene framed by terminal chrome: black, amber type, yellow function keys, blue title bars. Single dark look. */
+:root {
+  --black: #000;
+  --amber: #ffa028;      /* terminal type */
+  --amber-dim: #9c6114;
+  --white: #e6e6e6;
+  --yellow: #f2c230;     /* function keys */
+  --blue: #1d3c8f;       /* title bars */
+  --red: #d8322f;
+  --green: #2fa84f;
+  --grey: #3a3a3a;
+  --muted: #8c8c8c;
+  --f-term: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; background: var(--black); color: var(--amber); }
+body { font-family: var(--f-term); overflow: hidden; }
+button { font: inherit; }
+:focus-visible { outline: 2px solid var(--yellow); outline-offset: 1px; }
+
+#app { position: fixed; inset: 0; overflow: hidden; background: var(--black); }
+#gl { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+#gl.point { cursor: pointer; }
+#gl:active { cursor: grabbing; }
+
+.hud { position: absolute; z-index: 5; display: flex; gap: 4px; align-items: center; font-size: 11px; }
+#hud-top { top: calc(var(--lb, 0px) + 8px + env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); justify-content: space-between; flex-wrap: wrap; gap: 8px; pointer-events: none; }
+#hud-top > * { pointer-events: auto; }
+.brand { display: flex; gap: 8px; align-items: center; font-weight: 600; font-size: 12px; }
+.brand b { background: var(--amber); color: var(--black); padding: 3px 7px; }
+.brand span { color: var(--white); }
+.row { display: flex; gap: 4px; flex-wrap: wrap; }
+.key { border: 0; border-radius: 2px; padding: 6px 9px; cursor: pointer; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; box-shadow: inset 0 -2px 0 rgb(0 0 0 / .35); }
+.key.yel { background: var(--yellow); color: #111; }
+.key.grn { background: var(--green); color: #fff; }
+.key.red { background: var(--red); color: #fff; }
+.key.gry { background: var(--grey); color: var(--white); }
+.key[aria-pressed="true"] { outline: 2px solid var(--amber); outline-offset: 1px; }
+.key:hover { filter: brightness(1.12); }
+.key:disabled { opacity: .35; cursor: progress; filter: none; }
+#back { bottom: calc(var(--lb, 0px) + 12px + env(safe-area-inset-bottom, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); }
+#hint { bottom: calc(var(--lb, 0px) + 12px + env(safe-area-inset-bottom, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); color: var(--amber-dim); max-width: 52ch; text-align: right; justify-content: flex-end; pointer-events: none; }
+/* widescreen letterbox, like the film: bars only when the window is wider than it is tall */
+.lb { position: absolute; left: 0; right: 0; height: var(--lb, 0px); background: #000; z-index: 4; pointer-events: none; }
+.lb.t { top: 0; } .lb.b { bottom: 0; }
+#tip { position: absolute; z-index: 6; pointer-events: none; font-size: 11px; background: var(--black); color: var(--amber); border: 1px solid var(--amber-dim); padding: 4px 8px; white-space: nowrap; transform: translate(14px, 14px); text-transform: uppercase; }
+#toast { position: absolute; z-index: 7; left: 50%; bottom: calc(var(--lb, 0px) + 56px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--black); border: 1px solid var(--grey); border-top: 3px solid var(--blue); padding: 9px 12px; display: flex; gap: 12px; align-items: center; font-size: 12px; color: var(--amber); max-width: calc(100% - 32px); }
+#toast a { color: var(--white); overflow-wrap: anywhere; }
+#toast a:not([href]) { color: var(--amber); }
+#toast button { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 2px 4px; }
+
+/* ---------- login screen ---------- */
+#boot { position: absolute; inset: 0; z-index: 10; background: var(--black); display: grid; place-items: center; padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px)); transition: opacity .6s ease; }
+#boot.out { opacity: 0; pointer-events: none; }
+.login { width: min(620px, 100%); border: 1px solid var(--grey); }
+.login header { background: var(--blue); color: #fff; padding: 6px 10px; font-weight: 600; font-size: 12px; display: flex; justify-content: space-between; gap: 12px; }
+.login .body { padding: 18px 16px 16px; font-size: 13px; line-height: 1.55; }
+.login h1 { font-weight: 700; font-size: clamp(30px, 6vw, 44px); line-height: 1.05; color: var(--amber); margin: 0 0 4px; letter-spacing: .02em; }
+.login .sub { color: var(--white); margin: 0 0 16px; }
+.field { display: grid; grid-template-columns: 11ch 1fr; gap: 8px; }
+.field span:first-child { color: var(--muted); }
+.field span:last-child { color: var(--white); }
+#log { margin: 14px 0 12px; min-height: 7.8em; white-space: pre-wrap; color: var(--amber); font-size: 12px; }
+.bar { height: 12px; border: 1px solid var(--amber-dim); padding: 2px; margin-bottom: 16px; }
+.bar i { display: block; height: 100%; width: 0; background: var(--amber); transition: width .25s ease; }
+.boot-note { color: var(--muted); font-size: 11px; margin: 12px 0 0; }
+
+@media (max-width: 560px) {
+  #hint { display: none; }
+  .key { padding: 5px 6px; font-size: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #boot, .bar i { transition: none; }
+}
+</style>
+<style>[hidden]{display:none!important} body{margin:0}</style>
+</head>
+<body>
+
+
+<div id="app">
+  <canvas id="gl" aria-label="An empty trading floor at night on the 45th floor of a Frankfurt tower: a trader desk with six screens, a terminal keyboard, a dealer phone board, a company ID badge, a world clock and a Goethe University mug, rows of switched-off desks to both sides, and a glass wall onto the rainy Frankfurt skyline." role="img"></canvas>
+  <div class="lb t" aria-hidden="true"></div><div class="lb b" aria-hidden="true"></div>
+
+  <div class="hud" id="hud-top">
+    <div class="brand"><b>ND</b><span>TOPOFTHEBLOCK &lt;GO&gt;</span></div>
+    <div class="row" role="navigation" aria-label="Pages">
+      <button class="key yel" data-go="about">1 About</button>
+      <button class="key yel" data-go="projects">2 Projects</button>
+      <button class="key yel" data-go="writing">3 Writing</button>
+      <button class="key yel" data-go="contact">4 Contact</button>
+      <button class="key gry" id="sound" aria-pressed="false">Sound</button>
+    </div>
+  </div>
+  <button class="hud key red" id="back" hidden>Cancel · back to desk</button>
+  <div class="hud" id="hint">Drag to look around the floor. Click the screens, line keys, badge, clock or the glass. Type to use the terminal.</div>
+  <div id="tip" hidden></div>
+  <div id="toast" hidden role="status"><a id="toast-link" href="#" target="_blank" rel="noopener"></a><button id="toast-x" aria-label="Close">✕</button></div>
+
+  <div id="boot">
+    <div class="login">
+      <header><span>ND TERMINAL</span><span>LOGIN</span></header>
+      <div class="body">
+        <h1>NIGHT DESK</h1>
+        <p class="sub">Trading floor, 45th floor · Frankfurt am Main</p>
+        <div class="field"><span>USER</span><span>topoftheblock</span></div>
+        <div class="field"><span>PASSWORD</span><span>••••••••••</span></div>
+        <div id="log" aria-live="polite"></div>
+        <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+        <button class="key grn" id="enter" disabled>GO · Enter the floor</button>
+        <p class="boot-note">Entering starts the floor sound. The Sound key mutes it.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- The content lives here as plain HTML. The 3D terminal reads these sections, so edit them here only. -->
+<main id="flat" hidden>
+  <div class="col">
+    <header>
+      <p class="name">topoftheblock</p>
+      <nav aria-label="Sections">
+        <a href="#about">About</a><a href="#projects">Projects</a><a href="#writing">Writing</a><a href="#contact">Contact</a>
+      </nav>
+    </header>
+
+    <section data-page="about" id="about">
+      <h2>About</h2>
+      <p>I'm a student developer working on the web and on language models. Right now I'm finishing my bachelor thesis on retrieval-augmented generation.</p>
+      <p>This site is an empty trading floor on the 45th floor above Frankfurt, late at night, in the rain. The terminal on the desk shows the same text you're reading here.</p>
+    </section>
+
+    <section data-page="projects" id="projects">
+      <h2>Projects</h2>
+      <ul>
+        <li>Thesis_RAG: experiments with retrieval-augmented generation for my bachelor thesis.</li>
+        <li>Night Desk: this site. A three.js trading floor and Frankfurt skyline built entirely from code, with no 3D model files.</li>
+        <li>Site teardown: a static reverse-engineering report on how a 3D personal website loads and renders.</li>
+        <li><a href="https://github.com/topoftheblock">github.com/topoftheblock</a> has everything else.</li>
+      </ul>
+    </section>
+
+    <section data-page="writing" id="writing">
+      <h2>Writing</h2>
+      <p>Nothing published yet. Drafts on the desk:</p>
+      <ul>
+        <li>Loading a whole skyline without the page feeling slow</li>
+        <li>What a thesis taught me about retrieval pipelines</li>
+      </ul>
+    </section>
+
+    <section data-page="contact" id="contact">
+      <h2>Contact</h2>
+      <p>The fastest way to reach me is on GitHub.</p>
+      <ul>
+        <li><a href="https://github.com/topoftheblock">GitHub: topoftheblock</a></li>
+      </ul>
+    </section>
+  </div>
+</main>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { Reflector } from "three/addons/objects/Reflector.js";
+
+const $ = (s) => document.querySelector(s);
+const SITE = "topoftheblock";
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} },
+};
+const de = (n, d = 2) => n.toLocaleString("de-DE", { minimumFractionDigits: d, maximumFractionDigits: d });
+const hhmm = (d = new Date()) => d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+
+/* ================= content: read from the plain HTML ================= */
+const PAGES = ["about", "projects", "writing", "contact"];
+const CONTENT = {};
+const norm = (s) => s.replace(/\s+/g, " ").trim();
+document.querySelectorAll("#flat section[data-page]").forEach((sec) => {
+  const blocks = [];
+  sec.querySelectorAll(":scope > p, :scope > ul > li").forEach((el) => {
+    const a = el.querySelector("a");
+    blocks.push({ type: el.tagName === "P" ? "p" : "li", text: norm(el.textContent), href: a ? a.href : null });
+  });
+  CONTENT[sec.dataset.page] = { title: norm(sec.querySelector("h2").textContent), blocks };
+});
+
+/* ================= start-up ================= */
+const app = $("#app");
+let roomPromise = null, roomReady = false, entered = false;
+const hasGL2 = (() => { try { return !!document.createElement("canvas").getContext("webgl2"); } catch (e) { return false; } })();
+
+/* ================= boot screen ================= */
+const logEl = $("#log"), barEl = $("#bar"), enterBtn = $("#enter");
+const log = (t) => { logEl.textContent += (logEl.textContent ? "\n" : "") + t; };
+const progress = (p) => { barEl.style.width = Math.round(p * 100) + "%"; };
+const frame = () => new Promise((r) => requestAnimationFrame(() => r()));
+
+function ensureRoom() {
+  if (!roomPromise) roomPromise = bootRoom();
+  return roomPromise;
+}
+
+async function bootRoom() {
+  log("ND TERMINAL v1.0   LOGIN topoftheblock");
+  progress(0.05);
+  await Promise.race([
+    Promise.all(["500 20px IBM Plex Mono", "700 40px IBM Plex Mono", "600 40px Caveat", "700 40px Barlow Semi Condensed", "500 20px Barlow Semi Condensed"].map((f) => document.fonts.load(f))),
+    new Promise((r) => setTimeout(r, 2500)),
+  ]).catch(() => {});
+  log("Fonts ............ ok"); progress(0.15); await frame();
+  buildRenderer();
+  log("Video ............ WebGL 2, " + renderInfo); progress(0.3); await frame();
+  buildRoom();
+  log("Trading floor .... " + floorDesks + " desks, all empty"); progress(0.55); await frame();
+  try { buildFrankfurt(); log("Frankfurt ........ raining"); }
+  catch (e) { console.error(e); log("Frankfurt ........ not available"); } // the office still works without the view
+  progress(0.75); await frame();
+  syncCityCam();
+  renderer.compile(cityScene, cityCam);
+  renderer.compile(scene, camera);
+  composer.render();
+  log("Shaders .......... compiled"); progress(1); await frame();
+  roomReady = true;
+  requestAnimationFrame(loop);
+  enterBtn.disabled = false;
+  enterBtn.focus({ preventScroll: true });
+}
+
+enterBtn.addEventListener("click", () => {
+  entered = true;
+  $("#boot").classList.add("out");
+  setTimeout(() => ($("#boot").hidden = true), 750);
+  try { setSound(true); } catch (e) { console.warn("No sound:", e); } // the click is the gesture the browser needs before it plays sound
+  const h = location.hash.slice(1);
+  if (PAGES.includes(h)) setTimeout(() => setView("screen", h), 250);
+});
+
+/* ================= three.js core ================= */
+let renderer, scene, cityScene, camera, cityCam, controls, composer, grainPass, hemi, renderInfo = "";
+const canvas = $("#gl");
+const clock = new THREE.Clock();
+const ROOM_POS = new THREE.Vector3(1.05, 1.48, 1.6);
+const ROOM_TARGET = new THREE.Vector3(-0.1, 1.1, -0.35);
+const FOG_C = new THREE.Color().setRGB(0.014, 0.022, 0.085); // linear; the navy of the sky at the horizon, so towers fade into it
+
+function buildRenderer() {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.1;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  // Two scenes, two cameras: the office needs millimetre depth precision at 2 m, the city needs it at 3 km.
+  // One camera spanning both makes screens sink into their bezels and distant towers break up.
+  scene = new THREE.Scene();
+  cityScene = new THREE.Scene();
+  cityScene.background = FOG_C.clone();
+  cityScene.fog = new THREE.Fog(FOG_C.clone(), 900, 5200);
+
+  camera = new THREE.PerspectiveCamera(42, 1, 0.03, 80);
+  camera.position.copy(ROOM_POS);
+  cityCam = new THREE.PerspectiveCamera(42, 1, 5, 6000);
+
+  controls = new OrbitControls(camera, canvas);
+  controls.target.copy(ROOM_TARGET);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.enablePan = false;
+  controls.minDistance = 1.1;
+  controls.maxDistance = 3.2;
+  controls.minPolarAngle = 0.95;
+  controls.maxPolarAngle = 1.62;
+  controls.minAzimuthAngle = -1.3;
+  controls.maxAzimuthAngle = 1.3;
+  controls.rotateSpeed = 0.55;
+  controls.update();
+
+  const w = innerWidth, h = innerHeight;
+  // Safari is picky about off-screen buffers: half-float targets need an extension, and multisampled
+  // half-float targets render black on some versions. Fall back step by step instead of drawing nothing.
+  const ext = renderer.extensions;
+  const canHalf = ext.has("EXT_color_buffer_float") || ext.has("EXT_color_buffer_half_float");
+  const isSafari = /^((?!chrome|chromium|android|crios|fxios|edg).)*safari/i.test(navigator.userAgent);
+  const rt = new THREE.WebGLRenderTarget(w, h, { type: canHalf ? THREE.HalfFloatType : THREE.UnsignedByteType, samples: isSafari || !canHalf ? 0 : 4 });
+  renderer.debug.onShaderError = (gl, program, vs, fs) => {
+    const info = (gl.getShaderInfoLog(fs) || gl.getShaderInfoLog(vs) || "").split("\n")[0];
+    console.error("Shader failed:", info);
+    toast(null, "A part of the scene could not be drawn in this browser (" + info.slice(0, 80) + ").");
+  };
+  composer = new EffectComposer(renderer, rt);
+  composer.addPass(new RenderPass(cityScene, cityCam));
+  const roomPass = new RenderPass(scene, camera);
+  roomPass.clear = false; roomPass.clearDepth = true; // draw the office on top of the city with a fresh depth buffer
+  composer.addPass(roomPass);
+  if (canHalf) composer.addPass(new UnrealBloomPass(new THREE.Vector2(w, h), 0.45, 0.55, 0.85));
+  renderInfo = `${canHalf ? "HDR" : "8-bit"}, ${isSafari || !canHalf ? "no MSAA" : "MSAA x4"}${canHalf ? ", bloom" : ""}`;
+  grainPass = new ShaderPass({
+    uniforms: { tDiffuse: { value: null }, time: { value: 0 } },
+    vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+    fragmentShader: `uniform sampler2D tDiffuse; uniform float time; varying vec2 vUv;
+      float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)))*43758.5453); }
+      void main(){
+        vec2 d = vUv - .5;
+        float ca = dot(d,d) * .006;
+        vec3 c = vec3(texture2D(tDiffuse, vUv + d*ca).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - d*ca).b);
+        c *= 1. - dot(d,d) * .9;
+        float l = dot(c, vec3(.299, .587, .114));
+        c = mix(c, vec3(l), .38);                  // drained, documentary colour
+        c = mix(c, c * vec3(.84, .97, 1.14), .7);  // cold blue-teal grade
+        c = (c - .02) * 1.05;                      // lifted contrast, crushed blacks
+        c += (h(vUv*vec2(1920.,1080.) + fract(time)*100.) - .5) * .03;
+        gl_FragColor = vec4(c, 1.);
+      }`,
+  });
+  composer.addPass(grainPass);
+  composer.addPass(new OutputPass());
+  resize();
+  addEventListener("resize", resize);
+}
+
+function resize() {
+  if (!renderer) return;
+  const w = innerWidth, h = innerHeight;
+  app.style.setProperty("--lb", (w / h > 1.2 ? Math.min(h * 0.12, Math.max(0, (h - w / 2.39) / 2)) : 0) + "px");
+  camera.aspect = w / h;
+  camera.fov = lensFov || (w / h < 0.8 ? 58 : 42);
+  camera.updateProjectionMatrix();
+  syncCityCam();
+  renderer.setSize(w, h, false);
+  composer.setPixelRatio(renderer.getPixelRatio());
+  composer.setSize(w, h);
+  if (view === "screen") camera.position.copy(screenCamPos());
+}
+
+function syncCityCam() {
+  cityCam.position.copy(camera.position);
+  cityCam.quaternion.copy(camera.quaternion);
+  if (cityCam.fov !== camera.fov || cityCam.aspect !== camera.aspect) { cityCam.fov = camera.fov; cityCam.aspect = camera.aspect; cityCam.updateProjectionMatrix(); }
+}
+
+/* ================= helpers ================= */
+function canvasTex(w, h, draw, repeat) {
+  const c = document.createElement("canvas");
+  c.width = w; c.height = h;
+  const g = c.getContext("2d");
+  if (draw) draw(g, w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat[0], repeat[1]); }
+  t.userData = { canvas: c, ctx: g };
+  return t;
+}
+let seed = 7;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const std = (o) => new THREE.MeshStandardMaterial(o);
+const glowMat = (r, g, b) => new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b) });
+// Anything drawn flat on top of another surface (screens, labels) is pulled forward in depth so it never sinks in.
+const ONTOP = { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 };
+const screenMatFor = (tex, k = 1.15) => new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(k, k, k), ...ONTOP });
+function mesh(geo, mat, x, y, z, parent) { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); (parent || scene).add(m); return m; }
+const box = (w, h, d, m, x, y, z, parent) => mesh(new THREE.BoxGeometry(w, h, d), m, x, y, z, parent);
+
+/* ================= interaction registry ================= */
+const pickables = [];
+function interactive(obj, label, click) { obj.userData.act = { label, click }; pickables.push(obj); return obj; }
+
+/* ================= tweens ================= */
+const tweens = [];
+const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+function tween(dur, fn, done) {
+  const tw = { t: 0, dur: REDUCED ? Math.min(dur, 0.01) : dur, fn, done };
+  tweens.push(tw);
+  return tw;
+}
+function stepTweens(dt) {
+  for (let i = tweens.length - 1; i >= 0; i--) {
+    const tw = tweens[i];
+    tw.t = Math.min(1, tw.t + dt / tw.dur);
+    tw.fn(ease(tw.t), tw.t);
+    if (tw.t >= 1) { tweens.splice(i, 1); tw.done && tw.done(); }
+  }
+}
+
+/* ================= simulated market (fictional Frankfurt tickers) ================= */
+const mkt = {
+  syms: [["ZEIL", 64.2], ["ROEMER", 112.5], ["EBBEL", 23.8], ["MESSE", 88.1], ["OPER", 41.6], ["HBF", 17.9], ["MAIN", 203.4], ["DOM", 56.7], ["SKYL", 142.0], ["BOCK", 9.85], ["NIDDA", 31.2], ["TAUNUS", 77.3]]
+    .map(([s, p]) => ({ s, p, open: p * (1 + (Math.random() - 0.5) * 0.02), flash: 0 })),
+  idx: 18432.1, idxOpen: 18390.4, candles: [], tick: 0, line: [],
+};
+function idxNow() { return mkt.idxOpen * (mkt.syms.reduce((a, x) => a + x.p / x.open, 0) / mkt.syms.length) * 1.0023; }
+function tickMarket() {
+  for (const x of mkt.syms) {
+    const r = (Math.random() - 0.5) * 0.0035 + (x.open - x.p) / x.open * 0.002;
+    if (Math.random() < 0.55) { x.flash = Math.sign(r); x.p *= 1 + r; } else x.flash = 0;
+  }
+  mkt.idx = idxNow();
+  const c = mkt.candles[mkt.candles.length - 1];
+  if (!c || mkt.tick % 8 === 0) mkt.candles.push({ o: mkt.idx, h: mkt.idx, l: mkt.idx, c: mkt.idx });
+  else { c.c = mkt.idx; c.h = Math.max(c.h, mkt.idx); c.l = Math.min(c.l, mkt.idx); }
+  if (mkt.candles.length > 56) mkt.candles.shift();
+  mkt.line.push(mkt.idx); if (mkt.line.length > 160) mkt.line.shift();
+  mkt.tick++;
+}
+for (let i = 0; i < 56 * 8; i++) tickMarket();
+const idxChg = () => (mkt.idx / mkt.idxOpen - 1) * 100;
+const HEADLINES = [
+  "Apfelwein futures steady ahead of Sachsenhausen open",
+  "Rain over Frankfurt set to last through the night",
+  "Main water level up 4 cm; analysts call it a river",
+  "FFM40 drifts as the late session thins out",
+  "Thesis chapter 4: delivery now expected Friday",
+  "Gruene Sosse supply tight, say Bornheim traders",
+  "Night owls lift coffee sector after hours",
+  "Messe halls quiet; umbrellas sold out on the Zeil",
+];
+
+/* ================= the floor ================= */
+const DESK_Y = 0.74;
+let screenMat, screenMesh, lampOn = true, lamp = {}, mug = {}, squawk = {}, plant, rainMat, rainFall, steamMat, tv = {}, ticker, floorDesks = 0;
+const keys = new Map(), pressed = [], lineKeys = [], market = {}, badge = {}, deskClock = {};
+const SCREEN_CENTER = new THREE.Vector3(0, 1.03, -0.3065);
+
+function buildRoom() {
+  /* --- materials: a modern, empty office in blue light --- */
+  const concrete = canvasTex(1024, 1024, (g, w, h) => {
+    g.fillStyle = "#2a3039"; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 260; i++) {
+      const r = 20 + rnd() * 120, x = rnd() * w, y = rnd() * h, gr = g.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, `rgba(${rnd() < 0.5 ? "0,0,0" : "120,140,170"},${0.05 + rnd() * 0.06})`); gr.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    g.strokeStyle = "rgba(0,0,0,.35)"; g.lineWidth = 2;
+    for (let i = 0; i <= w; i += 256) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, h); g.moveTo(0, i); g.lineTo(w, i); g.stroke(); }
+  }, [7, 5]);
+  const M = {
+    floor: new THREE.MeshPhysicalMaterial({ map: concrete, roughness: 0.22, metalness: 0.05, clearcoat: 0.35, clearcoatRoughness: 0.3 }),
+    wall: std({ color: "#3a4452", roughness: 0.9 }),
+    ceiling: std({ color: "#151a22", roughness: 1 }),
+    top: new THREE.MeshPhysicalMaterial({ color: "#dfe3e9", roughness: 0.3, clearcoat: 0.4, clearcoatRoughness: 0.25 }),
+    frame: std({ color: "#2b3038", roughness: 0.35, metalness: 0.8 }),
+    black: std({ color: "#0a0c10", roughness: 0.4 }),
+    bezel: new THREE.MeshPhysicalMaterial({ color: "#0d0f13", roughness: 0.28, metalness: 0.1, clearcoat: 0.6, clearcoatRoughness: 0.2 }),
+    chair: std({ color: "#1b2230", roughness: 0.7 }),
+    metal: std({ color: "#9aa3ad", roughness: 0.3, metalness: 0.9 }),
+  };
+
+  /* --- shell: a wide open floor, glass to the east --- */
+  const X0 = -8.6, X1 = 8.6, Z0 = -0.65, Z1 = 4.4, H = 2.75;
+  const floor = mesh(new THREE.PlaneGeometry(X1 - X0, Z1 - Z0), M.floor, (X0 + X1) / 2, 0, (Z0 + Z1) / 2);
+  floor.rotation.x = -Math.PI / 2;
+  const ceil = mesh(new THREE.PlaneGeometry(X1 - X0, Z1 - Z0), M.ceiling, (X0 + X1) / 2, H, (Z0 + Z1) / 2);
+  ceil.rotation.x = Math.PI / 2;
+  box(0.1, H, Z1 - Z0, M.wall, X0, H / 2, (Z0 + Z1) / 2);
+  box(0.1, H, Z1 - Z0, M.wall, X1, H / 2, (Z0 + Z1) / 2);
+  box(X1 - X0, H, 0.1, M.wall, (X0 + X1) / 2, H / 2, Z1);
+  for (const x of [-3.45, -6.25, 3.45, 6.25]) box(0.5, H, 0.5, M.wall, x, H / 2, 1.3); // structural columns
+
+  // linear LED strips in the ceiling, cool white
+  const ledMat = glowMat(1.15, 1.35, 1.75);
+  // the building is vacant: most of the strips are off, only a few were left on
+  const ledOff = std({ color: "#20252d", roughness: 0.4 });
+  [[0, true], [-2.2, false], [-3.9, false], [-5.4, false], [-7.1, false], [2.2, false], [3.9, false], [5.4, false], [7.1, false]].forEach(([x, on]) => box(0.05, 0.015, 4.2, on ? ledMat : ledOff, x, H - 0.01, 1.8));
+  { const l = new THREE.PointLight("#dfe8ff", 3, 5, 2); l.position.set(0, 2.5, 0.4); scene.add(l); } // the one light left on, over my desk
+  for (const x of [-4.4, 4.4]) { const l = new THREE.PointLight("#7f97c8", 1.1, 7, 2); l.position.set(x, 2.4, 1.6); scene.add(l); } // emergency lighting, dim
+
+  /* --- the glass curtain wall --- */
+  for (let x = X0 + 0.05; x <= X1; x += 1.35) box(0.05, H, 0.09, M.frame, x, H / 2, Z0);
+  box(X1 - X0, 0.06, 0.1, M.frame, (X0 + X1) / 2, 0.03, Z0);
+  box(X1 - X0, 0.08, 0.1, M.frame, (X0 + X1) / 2, H - 0.04, Z0);
+  rainMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: { time: { value: 0 }, flash: { value: 0 } },
+    vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+    fragmentShader: `uniform float time; uniform float flash; varying vec2 vUv;
+      float h(float n){ return fract(sin(n)*43758.5453); }
+      float h2(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+      void main(){
+        vec2 g = vUv*vec2(420.,1.);
+        float col = floor(g.x);
+        float on = step(.5, h(col*3.1));
+        float y = fract(vUv.y*1.2 + time*(.18+h(col)*.45) + h(col*7.7));
+        float streak = (1.-smoothstep(.0,.14,abs(fract(g.x)-.5))) * smoothstep(.78,1.,y) * on;
+        vec2 dg = vUv*vec2(900.,230.);
+        float bead = step(.993, h2(floor(dg))) * (1.-smoothstep(.15,.45,length(fract(dg)-.5)));
+        gl_FragColor = vec4(vec3(.72,.82,1.), streak*.3 + bead*.35 + .03 + flash*.08);
+      }`,
+  });
+  const glass = mesh(new THREE.PlaneGeometry(X1 - X0, H), rainMat, (X0 + X1) / 2, H / 2, Z0 + 0.05);
+  glass.userData.passWhen = () => view === "window";
+  interactive(glass, () => (view === "screen" ? null : "Glass: look out over Frankfurt"), () => setView(view === "screen" ? "room" : "window"));
+
+  /* --- rain falling past the glass, outside --- */
+  const RN = 2600, rp = new Float32Array(RN * 6), re = new Float32Array(RN * 2);
+  for (let i = 0; i < RN; i++) {
+    const x = X0 - 2 + Math.random() * (X1 - X0 + 6), y = Math.random() * 30, z = Z0 - 0.6 - Math.random() * 30;
+    rp.set([x, y, z, x, y, z], i * 6); re[i * 2] = 0; re[i * 2 + 1] = 1;
+  }
+  const rg = new THREE.BufferGeometry();
+  rg.setAttribute("position", new THREE.BufferAttribute(rp, 3));
+  rg.setAttribute("e", new THREE.BufferAttribute(re, 1));
+  rainFall = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    uniforms: { time: { value: 0 } },
+    vertexShader: `attribute float e; uniform float time; varying float vE;
+      void main(){ vec3 p = position; p.y = mod(p.y - time*11., 30.) - 22. + e*.55; p.x += e*.06; vE = e;
+        gl_Position = projectionMatrix*modelViewMatrix*vec4(p,1.); }`,
+    fragmentShader: `varying float vE; void main(){ gl_FragColor = vec4(vec3(.6,.72,1.), .22*(1.-vE*.6)); }`,
+  });
+  const rain = new THREE.LineSegments(rg, rainFall); rain.frustumCulled = false; scene.add(rain);
+
+  /* --- a tall plant by the glass --- */
+  plant = new THREE.Group(); plant.position.set(-3.45, 0, 0.55); plant.scale.setScalar(3.2); plant.userData.base = 3.2; scene.add(plant);
+  mesh(new THREE.CylinderGeometry(0.05, 0.042, 0.11, 24), std({ color: "#d8dde4", roughness: 0.5 }), 0, 0.055, 0, plant);
+  const leafMat = std({ color: "#2f5a45", roughness: 0.6, side: THREE.DoubleSide });
+  for (let i = 0; i < 11; i++) {
+    const a = (i / 11) * Math.PI * 2;
+    const leaf = mesh(new THREE.SphereGeometry(0.03, 10, 8), leafMat, Math.cos(a) * 0.02, 0.16 + rnd() * 0.06, Math.sin(a) * 0.02, plant);
+    leaf.scale.set(0.45, 2.6, 0.16); leaf.rotation.set(Math.sin(a) * 0.5, -a, Math.cos(a) * 0.5);
+  }
+  interactive(plant, () => "Plant: water it", waterPlant);
+
+  /* --- my trader desk --- */
+  const desk = new THREE.Group(); scene.add(desk);
+  box(2.3, 0.035, 0.82, M.top, 0, DESK_Y - 0.0175, -0.2, desk);
+  for (const x of [-1.1, 1.1]) box(0.05, DESK_Y - 0.035, 0.7, M.frame, x, (DESK_Y - 0.035) / 2, -0.2, desk);
+  box(2.2, 0.04, 0.04, M.frame, 0, 0.35, -0.5, desk);
+  box(2.3, 0.3, 0.02, M.frame, 0, DESK_Y - 0.2, -0.6, desk); // modesty panel
+
+  // the six-screen stack on one pole
+  box(0.05, 0.85, 0.05, M.frame, 0, DESK_Y + 0.42, -0.47);
+  box(1.25, 0.03, 0.03, M.frame, 0, 1.03, -0.45);
+  box(1.25, 0.03, 0.03, M.frame, 0, 1.36, -0.45);
+  mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.012, 24), M.frame, 0, DESK_Y + 0.006, -0.47);
+
+  market.chart = canvasTex(512, 384); market.watch = canvasTex(512, 384); market.book = canvasTex(512, 384);
+  market.news = canvasTex(512, 384); market.heat = canvasTex(512, 384);
+  drawMarkets(true);
+  const monitor = (x, y, rotY, tex, isTerminal) => {
+    const g = new THREE.Group(); g.position.set(x, y, Math.abs(rotY) > 0 ? -0.255 : -0.32); g.rotation.y = rotY; scene.add(g);
+    mesh(new RoundedBoxGeometry(0.4, 0.31, 0.025, 2, 0.006), M.bezel, 0, 0, 0, g);
+    mesh(new THREE.BoxGeometry(0.1, 0.06, 0.03), M.frame, 0, 0, -0.025, g);
+    if (isTerminal) return g;
+    const s = mesh(new THREE.PlaneGeometry(0.37, 0.278), screenMatFor(tex), 0, 0, 0.0135, g);
+    interactive(s, () => "Market screens: a simulated feed", () => toast(null, `FFM40 ${de(mkt.idx, 1)} (${idxChg() >= 0 ? "+" : ""}${de(idxChg())} %). Every number on these screens is simulated.`));
+    return g;
+  };
+  monitor(-0.405, 1.36, 0.32, market.chart); monitor(0, 1.36, 0, market.heat); monitor(0.405, 1.36, -0.32, market.news);
+  monitor(-0.405, 1.03, 0.32, market.watch); monitor(0.405, 1.03, -0.32, market.book);
+  const termG = monitor(0, 1.03, 0, null, true);
+
+  screenMat = new THREE.ShaderMaterial({
+    ...ONTOP,
+    uniforms: { map: { value: screenTex }, time: { value: 0 } },
+    vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+    fragmentShader: `uniform sampler2D map; uniform float time; varying vec2 vUv;
+      void main(){
+        vec3 c = texture2D(map, vUv).rgb;
+        float lines = .93 + .07*sin(vUv.y*768.*3.14159);
+        float vig = pow(16.*vUv.x*vUv.y*(1.-vUv.x)*(1.-vUv.y), .18);
+        gl_FragColor = vec4(c*lines*vig*1.9 + vec3(.004,.006,.012), 1.);
+      }`,
+  });
+  screenMesh = mesh(new THREE.PlaneGeometry(0.37, 0.278), screenMat, 0, 0, 0.0135, termG);
+  interactive(screenMesh, () => (view === "screen" ? null : "Terminal: use it"), (hit) => (view === "screen" ? screenClick(hit.uv) : setView("screen")));
+
+  const note = canvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = "#f2dd63"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "rgba(0,0,0,.06)"; g.fillRect(0, 0, w, 34);
+    g.fillStyle = "#2c3e8f"; g.font = "600 40px Caveat"; g.textBaseline = "top";
+    ["finish thesis", "- chapter 4", "- more coffee"].forEach((t, i) => g.fillText(t, 18, 46 + i * 52));
+  });
+  const noteMesh = mesh(new THREE.PlaneGeometry(0.07, 0.07), std({ map: note, roughness: 0.9, ...ONTOP }), 0.17, 0.13, 0.0135, termG);
+  noteMesh.rotation.z = -0.12; noteMesh.position.z = 0.014;
+
+  buildKeyboard();
+  buildTurret();
+  buildMug();
+
+  /* --- slim LED desk lamp, cool white --- */
+  const lampG = new THREE.Group(); lampG.position.set(0.98, DESK_Y, -0.46); scene.add(lampG);
+  mesh(new THREE.CylinderGeometry(0.06, 0.065, 0.015, 28), M.frame, 0, 0.0075, 0, lampG);
+  const post = mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.46, 10), M.metal, 0, 0.23, 0, lampG);
+  const arm = mesh(new THREE.BoxGeometry(0.34, 0.012, 0.035), M.frame, -0.16, 0.465, 0.04, lampG); arm.rotation.y = -0.4;
+  lamp.bar = mesh(new THREE.BoxGeometry(0.22, 0.003, 0.012), glowMat(2.2, 2.5, 3.0), -0.18, 0.457, 0.05, lampG); lamp.bar.rotation.y = -0.4;
+  lamp.spot = new THREE.SpotLight("#d6e3ff", 3, 0, 0.9, 0.6, 2);
+  lamp.spot.position.set(lampG.position.x - 0.18, DESK_Y + 0.45, lampG.position.z + 0.08);
+  lamp.spot.target.position.set(0.25, DESK_Y, 0.05);
+  lamp.spot.castShadow = true; lamp.spot.shadow.mapSize.set(1024, 1024); lamp.spot.shadow.bias = -0.0004; lamp.spot.shadow.normalBias = 0.02;
+  scene.add(lamp.spot, lamp.spot.target);
+  interactive(lampG, () => `Lamp: switch ${lampOn ? "off" : "on"}`, toggleLamp);
+
+  /* --- squawk box: the floor's intercom speaker, toggles the sound --- */
+  squawk.g = new THREE.Group(); squawk.g.position.set(-1.0, DESK_Y, -0.42); squawk.g.rotation.y = 0.4; scene.add(squawk.g);
+  mesh(new RoundedBoxGeometry(0.16, 0.09, 0.12, 3, 0.01), std({ color: "#1d232c", roughness: 0.5 }), 0, 0.045, 0, squawk.g);
+  const grille = canvasTex(256, 256, (g, w, h) => {
+    g.fillStyle = "#0d1015"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#2c333d";
+    for (let y = 10; y < h; y += 16) for (let x = 10 + ((y / 16) % 2) * 8; x < w; x += 16) { g.beginPath(); g.arc(x, y, 4, 0, 7); g.fill(); }
+  });
+  mesh(new THREE.PlaneGeometry(0.12, 0.06), std({ map: grille, roughness: 0.8, ...ONTOP }), 0, 0.048, 0.0605, squawk.g);
+  squawk.led = mesh(new THREE.BoxGeometry(0.012, 0.004, 0.004), glowMat(0.05, 0.2, 0.08), 0.06, 0.084, 0.06, squawk.g);
+  interactive(squawk.g, () => `Squawk box: ${soundOn ? "mute" : "turn on"} the floor sound`, () => setSound(!soundOn));
+
+  /* --- the rest of the floor: rows of trader desks to both sides, all switched off --- */
+  const darkGlass = new THREE.MeshPhysicalMaterial({ color: "#040506", roughness: 0.06, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.05 }); // dead screens, reflecting the room
+  const standby = [];
+  const bezelGeo = new RoundedBoxGeometry(0.4, 0.27, 0.025, 2, 0.006), sGeo = new THREE.PlaneGeometry(0.37, 0.24);
+  const seatGeo = new RoundedBoxGeometry(0.46, 0.07, 0.44, 2, 0.02), backGeo = new RoundedBoxGeometry(0.44, 0.5, 0.06, 2, 0.02), stemGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.42, 10), legGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.03, 5);
+  const row = (x, face) => {
+    box(0.8, 0.035, 4.6, M.top, x, DESK_Y - 0.0175, 1.7);
+    box(0.04, DESK_Y, 4.4, M.frame, x - face * 0.38, DESK_Y / 2, 1.7);
+    box(0.02, 0.32, 4.6, M.frame, x - face * 0.4, DESK_Y + 0.16, 1.7); // the screen divider down the bench
+    for (const z of [-0.05, 1.15, 2.35, 3.55]) {
+      if (Math.abs(x) < 2 && z < 0.6) continue; // leave room at the ends of my own desk
+      const bare = rnd() < 0.25; // some desks were cleared out completely
+      if (!bare) for (const dz of [-0.21, 0.21]) {
+        const g = new THREE.Group(); g.position.set(x - face * 0.27, 1.02, z + dz); g.rotation.y = face * Math.PI / 2; scene.add(g);
+        mesh(bezelGeo, M.bezel, 0, 0, 0, g);
+        mesh(sGeo, darkGlass, 0, 0, 0.0135, g);
+        g.updateMatrixWorld(true);
+        standby.push(...g.localToWorld(new THREE.Vector3(0.175, -0.122, 0.014)).toArray()); // the little amber standby light
+      }
+      if (bare && rnd() < 0.5) continue; // and the chair went with them
+      const ch = new THREE.Group(); ch.position.set(x + face * 0.55, 0, z + (rnd() - 0.5) * 0.2); ch.rotation.y = face * (Math.PI / 2) + (rnd() - 0.5) * 0.8; scene.add(ch);
+      mesh(legGeo, M.frame, 0, 0.05, 0, ch); mesh(stemGeo, M.metal, 0, 0.26, 0, ch);
+      mesh(seatGeo, M.chair, 0, 0.48, 0, ch);
+      const bk = mesh(backGeo, M.chair, 0, 0.78, 0.22, ch); bk.rotation.x = -0.12;
+      floorDesks++;
+    }
+    interactive(scene.children[scene.children.length - 1], () => "An empty desk", () => toast(null, "Everyone went home hours ago. Every screen on this floor is off except yours."));
+  };
+  row(-1.75, 1); row(-2.55, -1); row(-4.35, 1); row(-5.15, -1); row(-6.95, 1); row(-7.75, -1);
+  row(1.75, -1); row(2.55, 1); row(4.35, -1); row(5.15, 1); row(6.95, -1); row(7.75, 1);
+  const sbGeo = new THREE.BufferGeometry(); sbGeo.setAttribute("position", new THREE.Float32BufferAttribute(standby, 3));
+  scene.add(new THREE.Points(sbGeo, new THREE.PointsMaterial({ color: new THREE.Color(2.6, 0.9, 0.12), size: 0.012, sizeAttenuation: true })));
+
+  // exit signs, the only other light that stays on
+  const exitTex = canvasTex(512, 160, (g, w, h) => { g.fillStyle = "#0e7a3a"; g.fillRect(0, 0, w, h); g.fillStyle = "#eafff0"; g.font = "700 62px IBM Plex Mono"; g.textBaseline = "middle"; g.fillText("NOTAUSGANG", 34, h / 2 + 2); });
+  for (const x of [-5.4, 5.4]) { box(0.44, 0.15, 0.03, M.frame, x, 2.5, 0.2); mesh(new THREE.PlaneGeometry(0.42, 0.13), screenMatFor(exitTex, 1.3), x, 2.5, 0.216); box(0.004, 0.2, 0.004, M.metal, x, 2.65, 0.2); }
+
+  /* --- a business-news TV hanging over the floor --- */
+  tv.tex = canvasTex(1024, 576);
+  tv.g = new THREE.Group(); tv.g.position.set(-1.55, 2.02, -0.05); tv.g.rotation.y = 0.55; scene.add(tv.g);
+  mesh(new RoundedBoxGeometry(1.36, 0.79, 0.045, 2, 0.01), M.bezel, 0, 0, 0, tv.g);
+  tv.screen = mesh(new THREE.PlaneGeometry(1.31, 0.737), screenMatFor(tv.tex, 1.25), 0, 0, 0.024, tv.g);
+  for (const x of [-0.5, 0.5]) box(0.006, 0.35, 0.006, M.metal, x, 0.57, 0, tv.g);
+  tv.light = new THREE.PointLight("#7fa6ff", 1.4, 4, 2); tv.light.position.set(-1.2, 1.9, 0.4); scene.add(tv.light);
+  interactive(tv.g, () => (view === "tv" ? null : "MAIN TV: markets, all night"), () => setView("tv"));
+
+  /* --- an LED ticker under the TV --- */
+  ticker = canvasTex(2048, 64);
+  ticker.wrapS = THREE.RepeatWrapping; ticker.repeat.set(0.5, 1);
+  drawTicker();
+  mesh(new THREE.BoxGeometry(1.36, 0.07, 0.03), M.bezel, 0, -0.44, 0, tv.g);
+  mesh(new THREE.PlaneGeometry(1.32, 0.055), screenMatFor(ticker, 1.3), 0, -0.44, 0.016, tv.g);
+
+  buildBadge(M);
+  buildDeskClock();
+
+  /* --- light --- */
+  hemi = new THREE.HemisphereLight("#6f88c8", "#1a2232", 1.0);
+  scene.add(hemi);
+  const sky = new THREE.DirectionalLight("#8fa8e8", 0.55); // diffuse light off the clouds, through the glass
+  sky.position.set(1.5, 3.4, -4); sky.target.position.set(0, 0.7, 0.3);
+  sky.castShadow = true; sky.shadow.mapSize.set(1024, 1024);
+  Object.assign(sky.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 1, far: 12 });
+  sky.shadow.mapSize.set(2048, 2048);
+  sky.shadow.camera.updateProjectionMatrix();
+  sky.shadow.bias = -0.0005; sky.shadow.normalBias = 0.02;
+  scene.add(sky, sky.target);
+  const screenGlow = new THREE.PointLight("#9cb8ff", 0.7, 2.5, 2); screenGlow.position.set(0, 1.2, 0.05); scene.add(screenGlow);
+
+  if (renderer.isWebGLRenderer) {
+    const pmrem = new THREE.PMREMGenerator(renderer), env = new THREE.Scene();
+    env.add(new THREE.Mesh(new THREE.SphereGeometry(50, 48, 24), new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      vertexShader: `varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+      fragmentShader: `varying vec3 vD;
+        void main(){
+          float y = vD.y;
+          vec3 c = mix(vec3(.015,.02,.05), vec3(.004,.005,.01), smoothstep(-.1, .6, y));
+          c += vec3(.16,.13,.1) * smoothstep(.14, 0., abs(y + .03)) * smoothstep(-.1, -.5, vD.z);  // city glow through the glass
+          c += vec3(.5,.55,.65) * step(.993, fract(vD.x * 5.)) * step(.9, y);                      // ceiling strips
+          c += vec3(.25,.12,.03) * smoothstep(.06, 0., abs(y - .05)) * step(.6, vD.z);             // the dim floor behind
+          gl_FragColor = vec4(c, 1.);
+        }`,
+    })));
+    scene.environment = pmrem.fromScene(env, 0.02).texture;
+    scene.environmentIntensity = 1.0;
+    pmrem.dispose();
+  }
+  scene.traverse((o) => {
+    if (o.isMesh && !(o.material.isShaderMaterial || o.material.isMeshBasicMaterial)) { o.castShadow = true; o.receiveShadow = true; }
+  });
+  [floor, ceil].forEach((m) => (m.castShadow = false));
+  drawScreen();
+}
+
+/* ================= terminal keyboard: black, with red, yellow and green function keys ================= */
+function buildKeyboard() {
+  const kb = new THREE.Group(); kb.position.set(0, DESK_Y, 0.02); kb.rotation.x = 0.05; scene.add(kb);
+  mesh(new RoundedBoxGeometry(0.47, 0.022, 0.215, 3, 0.008), std({ color: "#121418", roughness: 0.5 }), 0, 0.011, 0, kb);
+  const COLORS = { blk: ["#1b1d22", "#e6e9ef"], yel: ["#f2c230", "#1a1a1a"], red: ["#d8322f", "#ffffff"], grn: ["#2fa84f", "#ffffff"] };
+  const capMats = {}, labelCache = {};
+  const capMat = (c) => (capMats[c] ||= std({ color: COLORS[c][0], roughness: 0.45 }));
+  const labelMat = (text, c) => (labelCache[text + c] ||= std({
+    roughness: 0.45, ...ONTOP,
+    map: canvasTex(128, 128, (g, w, h) => {
+      g.fillStyle = COLORS[c][0]; g.fillRect(0, 0, w, h);
+      g.fillStyle = COLORS[c][1]; g.textAlign = "center"; g.textBaseline = "middle";
+      g.font = text.length > 2 ? `600 ${text.length > 4 ? 22 : 28}px IBM Plex Mono` : "600 54px IBM Plex Mono";
+      g.fillText(text, w / 2, h / 2 + 2);
+    }),
+  }));
+  const k = (label, name, color, wu = 1) => ({ label, name, color, wu });
+  const ROWS = [
+    [k("CANCEL", "Escape", "red", 1.4), ...["GOVT", "CORP", "MTGE", "M-MKT", "MUNI", "PFD", "EQUITY", "CMDTY", "INDEX", "CRNCY"].map((s) => k(s, null, "yel"))],
+    [..."1234567890".split("").map((c) => k(c, c, "blk")), k("⌫", "Backspace", "blk", 1.5)],
+    ["QWERTYUIOP".split("").map((c) => k(c, c, "blk")), [k("MENU", null, "grn", 1.4)]].flat(),
+    [..."ASDFGHJKL".split("").map((c) => k(c, c, "blk")), k("GO", "Enter", "grn", 2.0)],
+    [..."ZXCVBNM".split("").map((c) => k(c, c, "blk")), k(",", ",", "blk"), k(".", ".", "blk"), k("?", "?", "blk")],
+    [k("", " ", "blk", 6)],
+  ];
+  const P = 0.031, U = 0.026;
+  ROWS.forEach((row, r) => {
+    const width = row.reduce((a, x) => a + x.wu * P, 0);
+    let x = -width / 2;
+    row.forEach((key) => {
+      const w = key.wu * P - (P - U);
+      const g = new THREE.Group(); g.position.set(x + (key.wu * P) / 2, 0.029, -0.083 + r * P); kb.add(g);
+      mesh(new RoundedBoxGeometry(w, 0.013, U, 2, 0.004), capMat(key.color), 0, 0, 0, g);
+      if (key.label) { const top = mesh(new THREE.PlaneGeometry(w * 0.86, U * 0.86), labelMat(key.label, key.color), 0, 0.0066, 0, g); top.rotation.x = -Math.PI / 2; }
+      g.userData.y = g.position.y;
+      if (key.name) keys.set(key.name.length === 1 ? key.name.toUpperCase() : key.name, g);
+      x += key.wu * P;
+    });
+  });
+  interactive(kb, () => "Keyboard: type to use the terminal", () => setView("screen"));
+}
+
+/* ================= dealer board: the four lit line keys are the site menu ================= */
+function buildTurret() {
+  const t = new THREE.Group(); t.position.set(-0.62, DESK_Y, -0.04); t.rotation.y = 0.32; scene.add(t);
+  const body = std({ color: "#1a1f27", roughness: 0.45 });
+  const base = mesh(new RoundedBoxGeometry(0.3, 0.05, 0.22, 3, 0.01), body, 0, 0.025, 0, t);
+  const face = new THREE.Group(); face.position.set(0, 0.055, 0); face.rotation.x = -0.18; t.add(face);
+  const lcd = canvasTex(256, 64, (g, w, h) => { g.fillStyle = "#0b1a2c"; g.fillRect(0, 0, w, h); g.fillStyle = "#8fd0ff"; g.font = "500 23px IBM Plex Mono, monospace"; g.textBaseline = "middle"; g.fillText("LINES  1-4  READY", 10, h / 2); });
+  mesh(new THREE.PlaneGeometry(0.12, 0.03), screenMatFor(lcd, 1.1), 0.06, 0.002, -0.08, face).rotation.x = -Math.PI / 2;
+  for (let i = 0; i < 12; i++) mesh(new THREE.BoxGeometry(0.014, 0.006, 0.012), std({ color: "#3a4352", roughness: 0.5 }), 0.035 + (i % 4) * 0.02, 0.003, -0.035 + Math.floor(i / 4) * 0.02, face);
+  PAGES.forEach((p, i) => {
+    const lbl = canvasTex(256, 96, (g, w, h) => { g.fillStyle = "#e9eef5"; g.fillRect(0, 0, w, h); g.fillStyle = "#18202b"; g.font = "600 36px IBM Plex Mono"; g.textBaseline = "middle"; g.fillText(`${i + 1} ${CONTENT[p].title.toUpperCase()}`, 14, h / 2); });
+    const key = new THREE.Group(); key.position.set(-0.075, 0.006, -0.075 + i * 0.045); face.add(key);
+    const cap = mesh(new RoundedBoxGeometry(0.115, 0.012, 0.036, 2, 0.004), std({ color: "#e9eef5", roughness: 0.4, map: null }), 0, 0, 0, key);
+    const top = mesh(new THREE.PlaneGeometry(0.1, 0.03), std({ map: lbl, roughness: 0.4, emissive: new THREE.Color(0, 0, 0), emissiveMap: lbl, ...ONTOP }), 0, 0.0062, 0, key);
+    top.rotation.x = -Math.PI / 2;
+    const led = mesh(new THREE.BoxGeometry(0.01, 0.004, 0.01), glowMat(0.05, 0.1, 0.05), 0.075, 0, 0, key);
+    key.userData.y = key.position.y;
+    lineKeys.push({ key, top, led });
+    interactive(key, () => `Line ${i + 1}: ${CONTENT[p].title}`, () => setView("screen", p));
+  });
+  const hs = mesh(new RoundedBoxGeometry(0.05, 0.035, 0.22, 3, 0.012), body, -0.18, 0.02, 0, t);
+  interactive(hs, () => "Handset: pick up", () => { sfx.dial(); toast(null, "Dial tone. Nobody calls the desk at this hour."); });
+  interactive(base, () => "Dealer board: press a line key", () => setView("screen"));
+}
+function lightLine(i) {
+  lineKeys.forEach((l, j) => {
+    const on = j === i;
+    l.led.material.color.setRGB(on ? 0.4 : 0.05, on ? 3 : 0.1, on ? 0.6 : 0.05);
+    l.top.material.emissive.setRGB(on ? 0.35 : 0, on ? 0.45 : 0, on ? 0.6 : 0);
+  });
+  if (i >= 0) { const k = lineKeys[i].key; k.position.y = k.userData.y - 0.004; pressed.push({ m: k, t: 0.18 }); }
+}
+
+/* ================= Goethe University mug ================= */
+function buildMug() {
+  mug.g = new THREE.Group(); mug.g.position.set(0.47, DESK_Y, 0.1); scene.add(mug.g);
+  mug.rest = mug.g.position.clone();
+  // The cylinder's texture starts at +z (towards the viewer) and runs round to the handle at +x (u = .25).
+  // The mark sits just right of u = 0 and is drawn twice so it wraps across the seam.
+  const tex = canvasTex(1024, 384, (g, w, h) => {
+    g.fillStyle = "#f6f6f4"; g.fillRect(0, 0, w, h);
+    const mark = (cx) => {
+      const BLUE = "#00618f";
+      g.fillStyle = BLUE; g.fillRect(cx - 150, 86, 6, 212);
+      g.textBaseline = "alphabetic"; g.textAlign = "left";
+      g.font = "700 74px Barlow Semi Condensed"; g.fillText("GOETHE", cx - 128, 160);
+      g.font = "500 52px Barlow Semi Condensed"; g.fillText("UNIVERSITÄT", cx - 128, 220);
+      g.font = "500 30px Barlow Semi Condensed"; g.fillText("FRANKFURT AM MAIN", cx - 128, 280);
+    };
+    mark(40); mark(40 + w);
+  });
+  const outer = new THREE.MeshPhysicalMaterial({ map: tex, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.08 });
+  const white = new THREE.MeshPhysicalMaterial({ color: "#f6f6f4", roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.08 });
+  mesh(new THREE.CylinderGeometry(0.042, 0.039, 0.1, 40, 1, true), outer, 0, 0.05, 0, mug.g);
+  mesh(new THREE.CylinderGeometry(0.039, 0.036, 0.098, 40, 1, true), new THREE.MeshStandardMaterial({ color: "#f6f6f4", roughness: 0.25, side: THREE.BackSide }), 0, 0.051, 0, mug.g);
+  const bottom = mesh(new THREE.CircleGeometry(0.039, 32), white, 0, 0.002, 0, mug.g); bottom.rotation.x = -Math.PI / 2;
+  const handle = mesh(new THREE.TorusGeometry(0.026, 0.0065, 10, 24, Math.PI), white, 0.042, 0.052, 0, mug.g); handle.rotation.z = -Math.PI / 2;
+  mug.coffee = mesh(new THREE.CircleGeometry(0.037, 32), std({ color: "#24140a", roughness: 0.12 }), 0, 0.085, 0, mug.g);
+  mug.coffee.rotation.x = -Math.PI / 2;
+  mug.sips = 0;
+  steamMat = new THREE.ShaderMaterial({
+    transparent: true, depthWrite: false,
+    uniforms: { time: { value: 0 }, alpha: { value: 1 } },
+    vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+    fragmentShader: `uniform float time; uniform float alpha; varying vec2 vUv;
+      void main(){
+        float x = vUv.x - .5 + .09*sin(vUv.y*7. - time*1.6)*vUv.y;
+        float w = .1 + .12*vUv.y;
+        float a = smoothstep(w, 0., abs(x)) * smoothstep(0., .2, vUv.y) * smoothstep(1., .45, vUv.y);
+        a *= .55 + .45*sin(vUv.y*13. - time*2.6);
+        gl_FragColor = vec4(vec3(.85,.9,1.), a*.2*alpha);
+      }`,
+  });
+  mug.steam = new THREE.Mesh(new THREE.PlaneGeometry(0.09, 0.2), steamMat);
+  scene.add(mug.steam);
+  interactive(mug.g, () => (mug.sips >= 5 ? "Goethe Uni mug: refill" : "Goethe Uni mug: take a sip"), sip);
+}
+
+/* ================= Betriebsausweis: the company ID badge on its lanyard ================= */
+function buildBadge(M) {
+  const tex = canvasTex(1024, 646, (g, w, h) => {
+    g.fillStyle = "#f4f5f7"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#1d3c8f"; g.fillRect(0, 0, w, 118);
+    g.fillStyle = "#ffa028"; g.fillRect(0, 118, w, 10);
+    g.fillStyle = "#ffffff"; g.textBaseline = "middle";
+    g.font = "700 44px IBM Plex Mono"; g.fillText("ND CAPITAL MARKETS", 40, 60);
+    g.font = "600 24px IBM Plex Mono"; g.textAlign = "right"; g.fillText("BETRIEBSAUSWEIS", w - 40, 60); g.textAlign = "left";
+    g.fillStyle = "#c9ced8"; g.fillRect(40, 160, 250, 320);                       // the photo field, with a plain silhouette
+    g.fillStyle = "#8e96a6"; g.beginPath(); g.arc(165, 285, 68, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(165, 480, 112, 100, 0, Math.PI, 0); g.fill();
+    g.textBaseline = "alphabetic";
+    g.fillStyle = "#111111"; g.font = "700 50px IBM Plex Mono"; g.fillText("topoftheblock", 325, 215);
+    [["Abteilung", "Handel / Trading"], ["Etage", "45. OG"], ["Personal-Nr.", "004521"], ["Gültig bis", "12/2027"]].forEach(([k, v], i) => {
+      g.font = "500 22px IBM Plex Mono"; g.fillStyle = "#6b7280"; g.fillText(k, 325, 285 + i * 50);
+      g.font = "600 28px IBM Plex Mono"; g.fillStyle = "#111111"; g.fillText(v, 560, 285 + i * 50);
+    });
+    const chip = g.createLinearGradient(40, 515, 140, 595); chip.addColorStop(0, "#e8cf7a"); chip.addColorStop(1, "#b8963c");
+    g.fillStyle = chip; g.fillRect(40, 512, 100, 78);
+    g.strokeStyle = "#8c6f24"; g.lineWidth = 2; g.strokeRect(52, 524, 76, 54); g.beginPath(); g.moveTo(90, 512); g.lineTo(90, 590); g.moveTo(40, 551); g.lineTo(140, 551); g.stroke();
+    let x = 325; g.fillStyle = "#111111";
+    while (x < 980) { const bw = 2 + Math.floor(rnd() * 6); if (rnd() < 0.6) g.fillRect(x, 520, bw, 62); x += bw + 2 + Math.floor(rnd() * 4); }
+    g.font = "500 18px IBM Plex Mono"; g.fillStyle = "#6b7280"; g.fillText("Bei Fund bitte am Empfang im EG abgeben.", 325, 622);
+  });
+  tex.anisotropy = 16;
+  const card = new THREE.Group(); card.position.set(0.31, DESK_Y + 0.0009, 0.13); card.rotation.y = -0.35; scene.add(card);
+  mesh(new RoundedBoxGeometry(0.0856, 0.0016, 0.054, 2, 0.0007), new THREE.MeshPhysicalMaterial({ color: "#f4f5f7", roughness: 0.3, clearcoat: 1 }), 0, 0, 0, card);
+  const face = mesh(new THREE.PlaneGeometry(0.0856, 0.054), new THREE.MeshPhysicalMaterial({ map: tex, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.06, ...ONTOP }), 0, 0.00082, 0, card);
+  face.rotation.x = -Math.PI / 2;
+  mesh(new THREE.BoxGeometry(0.012, 0.003, 0.012), M.metal, 0, 0.0015, -0.031, card);           // the clip
+  // the lanyard, lying in a loose loop on the desk
+  const pts = [[0.321, 0.094], [0.345, 0.05], [0.372, -0.005], [0.36, -0.07], [0.31, -0.1], [0.262, -0.07], [0.252, 0.0], [0.276, 0.06], [0.316, 0.09]].map(([x, z]) => new THREE.Vector3(x, 0, z));
+  const lan = mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 90, 0.0055, 6), new THREE.MeshPhysicalMaterial({ color: "#1d3c8f", roughness: 0.75, sheen: 1, sheenColor: new THREE.Color("#6f8fe0") }), 0, DESK_Y + 0.0014, 0);
+  lan.scale.y = 0.22;
+  badge.card = card;
+  interactive(card, () => "Betriebsausweis: pick it up", () => setView("badge"));
+}
+
+/* ================= desk world clock: Frankfurt, London, New York, Tokyo ================= */
+const ZONES = [["FRANKFURT", "Europe/Berlin", 540, 1050], ["LONDON", "Europe/London", 480, 990], ["NEW YORK", "America/New_York", 570, 960], ["TOKYO", "Asia/Tokyo", 540, 900]]
+  .map(([n, tz, open, close]) => ({ n, tz, open, close,
+    f: new Intl.DateTimeFormat("de-DE", { timeZone: tz, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }),
+    d: new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "short" }) }));
+function buildDeskClock() {
+  deskClock.tex = canvasTex(1024, 256);
+  const g = new THREE.Group(); g.position.set(-0.36, DESK_Y, -0.22); g.rotation.y = 0.22; scene.add(g);
+  const tilt = new THREE.Group(); tilt.position.y = 0.04; tilt.rotation.x = -0.14; g.add(tilt);
+  mesh(new RoundedBoxGeometry(0.27, 0.078, 0.045, 3, 0.006), new THREE.MeshPhysicalMaterial({ color: "#0b0c0f", roughness: 0.35, clearcoat: 0.7 }), 0, 0, 0, tilt);
+  mesh(new THREE.PlaneGeometry(0.25, 0.0625), screenMatFor(deskClock.tex, 1.25), 0, 0, 0.0228, tilt);
+  mesh(new THREE.BoxGeometry(0.2, 0.012, 0.05), new THREE.MeshPhysicalMaterial({ color: "#16181d", roughness: 0.4 }), 0, 0.006, 0.005, g);
+  drawDeskClock();
+  interactive(g, () => "World clock: " + ZONES.map((z) => z.n.split(" ")[0] + " " + z.f.format(new Date()).slice(0, 5)).join(" · "),
+    () => toast(null, ZONES.map((z) => `${z.n} ${z.f.format(new Date()).slice(0, 5)} ${marketOpen(z) ? "open" : "closed"}`).join("  ·  ")));
+}
+function marketOpen(z) {
+  const now = new Date(), [hh, mm] = z.f.format(now).split(":").map(Number), m = hh * 60 + mm, day = z.d.format(now);
+  return day !== "Sat" && day !== "Sun" && m >= z.open && m < z.close;
+}
+function drawDeskClock() {
+  const g = deskClock.tex.userData.ctx, w = 1024, h = 256;
+  g.fillStyle = "#000000"; g.fillRect(0, 0, w, h);
+  g.textBaseline = "middle";
+  ZONES.forEach((z, i) => {
+    const x = i * 256, [hh, mm, ss] = z.f.format(new Date()).split(":"), open = marketOpen(z);
+    g.fillStyle = "#1d3c8f"; g.fillRect(x + 6, 6, 244, 50);
+    g.fillStyle = "#ffffff"; g.font = "600 28px IBM Plex Mono"; g.fillText(z.n, x + 18, 32);
+    g.fillStyle = "#ffa028"; g.font = "600 76px IBM Plex Mono"; g.fillText(`${hh}:${mm}`, x + 14, 128);
+    g.fillStyle = "#9c6114"; g.font = "500 26px IBM Plex Mono"; g.fillText(ss, x + 206, 146);
+    g.fillStyle = open ? "#2fa84f" : "#4a4a4a"; g.fillRect(x + 18, 196, 18, 18);
+    g.fillStyle = open ? "#2fa84f" : "#8c8c8c"; g.font = "600 24px IBM Plex Mono"; g.fillText(open ? "MARKET OPEN" : "CLOSED", x + 46, 206);
+  });
+  deskClock.tex.needsUpdate = true;
+}
+
+/* ================= market screens ================= */
+const UPC = "#2fd16f", DNC = "#ff4b4b", GRID = "#1e1e1e", BLUEBG = "#000000";
+function header(g, w, text) {
+  g.fillStyle = "#1d3c8f"; g.fillRect(0, 0, w, 34);
+  g.fillStyle = "#ffffff"; g.font = "500 20px IBM Plex Mono, monospace"; g.textBaseline = "middle"; g.textAlign = "left";
+  g.fillText(text, 10, 18);
+  g.fillStyle = "#8c8c8c"; g.textAlign = "right"; g.fillText("SIMULATED", w - 10, 18); g.textAlign = "left";
+}
+function drawMarkets(all) {
+  // candlesticks
+  { const g = market.chart.userData.ctx, w = 512, h = 384;
+    g.fillStyle = BLUEBG; g.fillRect(0, 0, w, h); header(g, w, "FFM40 INDEX  1 MIN");
+    const cs = mkt.candles, lo = Math.min(...cs.map((c) => c.l)), hi = Math.max(...cs.map((c) => c.h)), pad = (hi - lo) * 0.1 || 1;
+    const Y = (v) => 50 + (1 - (v - lo + pad) / (hi - lo + 2 * pad)) * (h - 70);
+    g.strokeStyle = GRID; g.lineWidth = 1;
+    for (let i = 0; i < 6; i++) { const y = 50 + (i * (h - 70)) / 5; g.beginPath(); g.moveTo(0, y); g.lineTo(w - 70, y); g.stroke(); }
+    const cw = (w - 80) / cs.length;
+    cs.forEach((c, i) => {
+      const x = 6 + i * cw + cw / 2, up = c.c >= c.o; g.strokeStyle = g.fillStyle = up ? UPC : DNC;
+      g.beginPath(); g.moveTo(x, Y(c.h)); g.lineTo(x, Y(c.l)); g.stroke();
+      const y0 = Y(Math.max(c.o, c.c)), y1 = Y(Math.min(c.o, c.c)); g.fillRect(x - cw * 0.35, y0, cw * 0.7, Math.max(1, y1 - y0));
+    });
+    const ly = Y(mkt.idx); g.fillStyle = "#ffa028"; g.fillRect(w - 72, ly - 12, 72, 24);
+    g.fillStyle = "#04070d"; g.font = "500 17px IBM Plex Mono, monospace"; g.fillText(de(mkt.idx, 1), w - 68, ly + 1);
+    market.chart.needsUpdate = true; }
+  // watchlist
+  { const g = market.watch.userData.ctx, w = 512, h = 384;
+    g.fillStyle = BLUEBG; g.fillRect(0, 0, w, h); header(g, w, "WATCHLIST  FFM");
+    g.font = "500 19px IBM Plex Mono, monospace"; g.fillStyle = "#8c8c8c"; g.fillText("SYM", 12, 50); g.fillText("LAST", 200, 50); g.fillText("CHG %", 370, 50);
+    mkt.syms.forEach((x, i) => {
+      const y = 76 + i * 25, chg = (x.p / x.open - 1) * 100;
+      if (x.flash) { g.fillStyle = x.flash > 0 ? "rgba(52,209,127,.22)" : "rgba(255,84,104,.22)"; g.fillRect(190, y - 12, 140, 24); }
+      g.fillStyle = "#ffa028"; g.fillText(x.s, 12, y); g.fillText(de(x.p), 200, y);
+      g.fillStyle = chg >= 0 ? UPC : DNC; g.fillText((chg >= 0 ? "+" : "") + de(chg), 370, y);
+    });
+    market.watch.needsUpdate = true; }
+  // order book
+  { const g = market.book.userData.ctx, w = 512, h = 384;
+    g.fillStyle = BLUEBG; g.fillRect(0, 0, w, h); header(g, w, "FFM40 FUT  DEPTH");
+    g.font = "500 19px IBM Plex Mono, monospace";
+    for (let i = 0; i < 6; i++) {
+      const ask = mkt.idx + 0.5 + i * 0.5, bid = mkt.idx - 0.5 - i * 0.5, sa = 20 + Math.random() * 180, sb = 20 + Math.random() * 180;
+      const ya = 190 - i * 24, yb = 214 + i * 24;
+      g.fillStyle = "rgba(255,84,104,.25)"; g.fillRect(w - 20 - sa, ya - 11, sa, 22);
+      g.fillStyle = "rgba(52,209,127,.25)"; g.fillRect(w - 20 - sb, yb - 11, sb, 22);
+      g.fillStyle = DNC; g.fillText(de(ask, 1), 20, ya); g.fillText(String(Math.round(sa)), 200, ya);
+      g.fillStyle = UPC; g.fillText(de(bid, 1), 20, yb); g.fillText(String(Math.round(sb)), 200, yb);
+    }
+    market.book.needsUpdate = true; }
+  // heat map
+  { const g = market.heat.userData.ctx, w = 512, h = 384;
+    g.fillStyle = BLUEBG; g.fillRect(0, 0, w, h); header(g, w, "FFM40 HEAT MAP");
+    mkt.syms.forEach((x, i) => {
+      const cx = (i % 4) * 126 + 4, cy = 42 + Math.floor(i / 4) * 112, chg = (x.p / x.open - 1) * 100, k = Math.min(1, Math.abs(chg) / 1.2);
+      g.fillStyle = chg >= 0 ? `rgba(30,${120 + 80 * k},${70 + 30 * k},${0.35 + 0.55 * k})` : `rgba(${150 + 90 * k},40,60,${0.35 + 0.55 * k})`;
+      g.fillRect(cx, cy, 120, 106);
+      g.fillStyle = "#ffffff"; g.font = "500 22px IBM Plex Mono, monospace"; g.fillText(x.s, cx + 8, cy + 24); g.font = "500 19px IBM Plex Mono, monospace"; g.fillText((chg >= 0 ? "+" : "") + de(chg) + " %", cx + 8, cy + 82);
+    });
+    market.heat.needsUpdate = true; }
+  if (all || mkt.tick % 6 === 0) {
+    const g = market.news.userData.ctx, w = 512, h = 384;
+    g.fillStyle = BLUEBG; g.fillRect(0, 0, w, h); header(g, w, "TOP NEWS");
+    const start = Math.floor(mkt.tick / 30) % HEADLINES.length;
+    g.font = "500 19px IBM Plex Mono, monospace";
+    for (let i = 0; i < 6; i++) {
+      const t = HEADLINES[(start + i) % HEADLINES.length], y = 64 + i * 54;
+      g.fillStyle = i === 0 ? "#ffa028" : "#8c8c8c"; g.fillText(hhmm(new Date(Date.now() - i * 7 * 60000)), 10, y);
+      g.fillStyle = i === 0 ? "#ffffff" : "#ffa028";
+      const words = t.split(" "); let line = "", ly = y;
+      for (const wd of words) { if (g.measureText(line + wd).width > 400) { g.fillText(line, 90, ly); line = ""; ly += 24; } line += wd + " "; }
+      g.fillText(line, 90, ly);
+    }
+    market.news.needsUpdate = true;
+  }
+}
+function drawTicker() {
+  const g = ticker.userData.ctx, w = 2048, h = 64;
+  g.fillStyle = "#02050a"; g.fillRect(0, 0, w, h);
+  g.font = "500 32px IBM Plex Mono, monospace"; g.textBaseline = "middle";
+  let x = 10;
+  const items = [["FFM40", mkt.idx, idxChg()], ...mkt.syms.map((s) => [s.s, s.p, (s.p / s.open - 1) * 100])];
+  while (x < w) for (const [s, p, c] of items) {
+    if (x > w) break;
+    g.fillStyle = "#ffa028"; g.fillText(s, x, h / 2); x += g.measureText(s).width + 12;
+    g.fillStyle = c >= 0 ? UPC : DNC; const t = `${de(p, s === "FFM40" ? 1 : 2)} ${c >= 0 ? "▲" : "▼"}${de(Math.abs(c))}%`;
+    g.fillText(t, x, h / 2); x += g.measureText(t).width + 40;
+  }
+  ticker.needsUpdate = true;
+}
+
+/* ================= MAIN TV: a fictional business-news channel ================= */
+let tvHead = 0, tvCrawl = 0;
+function drawTV(dt) {
+  const g = tv.tex.userData.ctx, w = 1024, h = 576;
+  const bg = g.createLinearGradient(0, 0, w, h);
+  bg.addColorStop(0, "#071a3a"); bg.addColorStop(1, "#020815");
+  g.fillStyle = bg; g.fillRect(0, 0, w, h);
+  // studio bokeh
+  for (let i = 0; i < 14; i++) {
+    const x = (i * 173) % w, y = 60 + ((i * 97) % 260), r = 30 + (i % 4) * 14;
+    const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, "rgba(80,140,255,.16)"); gr.addColorStop(1, "rgba(80,140,255,0)");
+    g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  // the segment: a big index panel
+  g.fillStyle = "rgba(4,12,28,.85)"; g.fillRect(40, 70, 600, 300);
+  g.fillStyle = "#ffffff"; g.font = "700 30px Barlow Semi Condensed"; g.textBaseline = "alphabetic"; g.fillText("FFM40 · TONIGHT", 60, 108);
+  const ln = mkt.line, lo = Math.min(...ln), hi = Math.max(...ln);
+  g.strokeStyle = idxChg() >= 0 ? UPC : DNC; g.lineWidth = 3; g.beginPath();
+  ln.forEach((v, i) => { const x = 60 + (i / (ln.length - 1)) * 560, y = 350 - ((v - lo) / (hi - lo || 1)) * 210; i ? g.lineTo(x, y) : g.moveTo(x, y); });
+  g.stroke();
+  g.fillStyle = "#ffffff"; g.font = "700 64px Barlow Semi Condensed"; g.fillText(de(mkt.idx, 1), 670, 170);
+  g.fillStyle = idxChg() >= 0 ? UPC : DNC; g.font = "700 40px Barlow Semi Condensed"; g.fillText(`${idxChg() >= 0 ? "▲ +" : "▼ "}${de(idxChg())} %`, 670, 222);
+  g.fillStyle = "#9fb6dd"; g.font = "500 24px Barlow Semi Condensed"; g.fillText("simulated, like everything here", 670, 258);
+  // bug and clock
+  g.fillStyle = "#1f6fff"; g.fillRect(40, 20, 150, 38);
+  g.fillStyle = "#ffffff"; g.font = "700 28px Barlow Semi Condensed"; g.fillText("MAIN TV", 56, 49);
+  g.fillStyle = "#e3262f"; g.fillRect(196, 20, 64, 38); g.fillStyle = "#ffffff"; g.font = "700 24px Barlow Semi Condensed"; g.fillText("LIVE", 206, 47);
+  g.textAlign = "right"; g.fillText("FFM " + hhmm(), w - 40, 48); g.textAlign = "left";
+  // lower third: headline + crawl
+  tvHead += dt;
+  const head = HEADLINES[Math.floor(tvHead / 7) % HEADLINES.length];
+  g.fillStyle = "#ffffff"; g.fillRect(0, 410, w, 70);
+  g.fillStyle = "#1f6fff"; g.fillRect(0, 410, 14, 70);
+  g.fillStyle = "#06122a"; g.font = "700 36px Barlow Semi Condensed"; g.fillText(head.toUpperCase(), 34, 458);
+  g.fillStyle = "#0a1c3d"; g.fillRect(0, 480, w, 56);
+  tvCrawl = (tvCrawl + dt * 90) % 2400;
+  g.font = "500 30px Barlow Semi Condensed";
+  let x = w - tvCrawl;
+  for (let r = 0; r < 2; r++) for (const s of mkt.syms) {
+    const c = (s.p / s.open - 1) * 100, t = `${s.s} ${de(s.p)}`, ct = ` ${c >= 0 ? "▲" : "▼"}${de(Math.abs(c))}   `;
+    g.fillStyle = "#ffffff"; g.fillText(t, x, 518); x += g.measureText(t).width;
+    g.fillStyle = c >= 0 ? UPC : DNC; g.fillText(ct, x, 518); x += g.measureText(ct).width;
+  }
+  g.fillStyle = "#020815"; g.fillRect(0, 536, w, 40);
+  g.fillStyle = "#8c8c8c"; g.font = "500 22px Barlow Semi Condensed"; g.fillText("A fictional channel. No real prices are shown on this floor.", 40, 563);
+  tv.tex.needsUpdate = true;
+}
+
+/* ================= Frankfurt am Main, seen from the 45th floor =================
+   The view is laid out like the classic night shot from the Main: the river runs straight away from the
+   window, an arch bridge lit green crosses it, and the banking district rises behind, with the
+   Commerzbank Tower lit gold in the middle, the Main Tower to its right and the floodlit Kaiserdom by the bank.
+   Street level is 160 m below the desk. −z runs away from the window. */
+const G = -160;
+const CITY_TURN = 0.6;
+const UP = new THREE.Vector3(0, 1, 0);
+const city = { beacons: null, planes: null, water: null, sky: null, cars: null, flash: 0, nextFlash: 25 };
+
+// One facade shader for every building: windows come from world position (3.7 m floors, 2.8 m bays),
+// so a building's size never stretches its windows. Lit windows go above 1.0 and bloom.
+const facadeVS = `varying vec3 vW; varying vec3 vN;
+  void main(){
+    vec4 p = vec4(position, 1.); vec3 n = normal;
+    #ifdef USE_INSTANCING
+      p = instanceMatrix * p; n = mat3(instanceMatrix) * n;
+    #endif
+    vec4 w = modelMatrix * p; vW = w.xyz; vN = normalize(mat3(modelMatrix) * n);
+    gl_Position = projectionMatrix * viewMatrix * w;
+  }`;
+const fogGLSL = `vec3 haze(vec3 c, vec3 w){ return mix(c, fogC, smoothstep(700., 5200., length(w - cameraPosition)) * .75); }`;
+const facadeFS = `uniform vec3 base; uniform vec3 tint; uniform float bay; uniform float lit; uniform float seed; uniform vec3 fogC; uniform vec3 center; uniform float cyl; uniform float floorH;
+  varying vec3 vW; varying vec3 vN;
+  float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7)) + seed) * 43758.5453); }
+  ${fogGLSL}
+  void main(){
+    vec3 n = normalize(vN), c;
+    float up = clamp((vW.y + 160.) / 300., 0., 1.);
+    vec3 V = normalize(cameraPosition - vW);
+    float fr = pow(1. - clamp(abs(dot(n, V)), 0., 1.), 4.);                 // glass turns mirror-like at grazing angles
+    vec3 glass = base + vec3(.006, .01, .025) + vec3(.012, .02, .045) * up + fr * vec3(.03, .045, .12);
+    if (n.y > .5) c = base * .6;
+    else {
+      float u = cyl > 0. ? atan(vW.z - center.z, vW.x - center.x) * cyl : (abs(n.x) > .5 ? vW.z : vW.x);
+      vec2 q = vec2(u / bay, vW.y / floorH), cell = floor(q), f = fract(q);
+      float win = step(.1, f.x) * step(f.x, .9) * step(.14, f.y) * step(f.y, .86);
+      // offices light up in runs along a floor, the way a tower looks at 10 pm
+      vec2 run = vec2(floor(cell.x / 6.), cell.y);
+      float on = step(1. - lit * 1.35, h(run)) * step(.15, h(cell));
+      float hue = h(run + 3.);
+      vec3 wc = hue < .62 ? vec3(.8, 1., .86) : hue < .85 ? vec3(1., .86, .58) : vec3(.72, .86, 1.); // mostly cool fluorescent
+      vec3 lightC = wc * (.85 + .4 * h(cell * .7)) * mix(.65, 1.2, f.y);   // brighter under the ceiling lights
+      vec3 detail = mix(glass * .6, glass, win) + win * on * lightC;
+      vec2 fw = fwidth(q);
+      float blur = clamp(max(fw.x, fw.y) * 2. - .4, 0., 1.);
+      c = mix(detail, glass * .8 + .55 * lit * vec3(.86, .97, .86), blur);
+      c *= .8 + .2 * max(n.z, 0.);
+    }
+    c += tint * (.3 + .7 * up);   // floodlit crowns and facades
+    gl_FragColor = vec4(haze(c, vW), 1.);
+  }`;
+function facade({ base = "#070b16", lit = 0.3, cyl = 0, center = [0, 0, 0], floorH = 3.7, tint = [0, 0, 0], bay = 2.8 } = {}) {
+  return new THREE.ShaderMaterial({
+    vertexShader: facadeVS, fragmentShader: facadeFS,
+    uniforms: {
+      base: { value: new THREE.Color(base) }, tint: { value: new THREE.Vector3(...tint) }, bay: { value: bay }, lit: { value: lit }, seed: { value: rnd() * 100 }, fogC: { value: FOG_C },
+      center: { value: new THREE.Vector3(...center) }, cyl: { value: cyl }, floorH: { value: floorH },
+    },
+  });
+}
+// Stone lit by floodlights from below: churches, the cathedral, the old town fronts.
+const floodFS = `uniform vec3 base; uniform vec3 fogC; uniform float y0; uniform float hgt; varying vec3 vW; varying vec3 vN;
+  ${fogGLSL}
+  void main(){
+    vec3 n = normalize(vN);
+    float k = clamp((vW.y - y0) / hgt, 0., 1.);
+    float light = mix(1.25, .5, k) * (.55 + .45 * max(dot(n, normalize(vec3(.25, .3, 1.))), 0.));
+    float ribs = .82 + .18 * step(.45, fract((abs(n.x) > .5 ? vW.z : vW.x) * .3));
+    gl_FragColor = vec4(haze(base * light * ribs, vW), 1.);
+  }`;
+function flood(base, y0, hgt) {
+  return new THREE.ShaderMaterial({ vertexShader: facadeVS, fragmentShader: floodFS,
+    uniforms: { base: { value: new THREE.Color().setRGB(...base) }, fogC: { value: FOG_C }, y0: { value: G + y0 }, hgt: { value: hgt } } });
+}
+
+function buildFrankfurt() {
+  const root = new THREE.Group(); cityScene.add(root);
+  root.rotation.y = CITY_TURN; // turn the whole view so the cluster stands right behind the desk
+  const glow = glowMat;
+  const dark = new THREE.MeshBasicMaterial({ color: "#05070c" });
+  const antenna = new THREE.MeshBasicMaterial({ color: "#1c2030" });
+  const beacons = [];
+  const M = (geo, mat, x, y, z, parent) => mesh(geo, mat, x, y, z, parent);
+  const corners = (x, z, w, d, ys) => { for (const y of ys) for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) beacons.push(x + (sx * w) / 2, G + y, z + (sz * d) / 2); };
+  const tower = (name, info, x, z, build) => {
+    const g = new THREE.Group(); g.position.set(x, G, z); root.add(g);
+    build(g, [x, G, z]);
+    if (name) interactive(g, () => (view === "window" ? name : null), () => toast(null, `${name}. ${info}`));
+    return g;
+  };
+
+  /* --- navy sky with long streaks of cloud --- */
+  city.sky = new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, fog: false,
+    uniforms: { time: { value: 0 }, flash: { value: 0 } },
+    vertexShader: `varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+    fragmentShader: `uniform float time; uniform float flash; varying vec3 vD;
+      float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+      float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.-2.*f);
+        return mix(mix(hash(i), hash(i+vec2(1.,0.)), f.x), mix(hash(i+vec2(0.,1.)), hash(i+vec2(1.,1.)), f.x), f.y); }
+      float fbm(vec2 p){ float v = 0., a = .5; for (int i = 0; i < 5; i++){ v += a*noise(p); p *= 2.03; a *= .5; } return v; }
+      void main(){
+        float y = vD.y;
+        vec2 uv = vD.xz / (max(y, .02) + .2);
+        float streak = fbm(vec2(uv.x * .35 + time * .01, uv.y * 2.6));
+        vec3 c = mix(vec3(.014,.022,.085), vec3(.002,.004,.022), smoothstep(0., .5, y));
+        c += smoothstep(.45, .8, streak) * vec3(.012,.02,.05) * smoothstep(-.02, .3, y);
+        c += flash * streak * vec3(.25,.3,.5);
+        c += step(.9992, hash(floor(vD.xy * 900.))) * smoothstep(.25, .6, y) * .5;
+        c = mix(c, vec3(.004,.006,.015), smoothstep(0., -.06, y));
+        gl_FragColor = vec4(c, 1.);
+      }`,
+  });
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(5000, 48, 24), city.sky);
+  sky.renderOrder = -1; root.add(sky);
+
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(12000, 12000), new THREE.MeshBasicMaterial({ color: "#04060b" }));
+  ground.rotation.x = -Math.PI / 2; ground.position.set(0, G, -2000); root.add(ground);
+
+  /* --- the Main: straight away from the window, bending left behind the bridge --- */
+  const river = new THREE.SplineCurve([[-140, 300], [-160, -300], [-185, -800], [-260, -1150], [-520, -1330], [-1000, -1430], [-1800, -1520], [-2800, -1600]].map(([x, z]) => new THREE.Vector2(x, z)));
+  const RW = 105, samples = river.getSpacedPoints(800);
+  const nearRiver = (x, z, pad) => samples.some((p) => Math.abs(p.x - x) < RW + pad && Math.abs(p.y - z) < RW + pad && Math.hypot(p.x - x, p.y - z) < RW + pad);
+  const rp = [], ri = [];
+  samples.forEach((p, i) => {
+    const t = river.getTangent(i / (samples.length - 1));
+    // built in the XY plane (y = −z) so the mirror below can treat it as a flat reflector facing +y
+    rp.push(p.x - t.y * RW, -(p.y + t.x * RW), 0, p.x + t.y * RW, -(p.y - t.x * RW), 0);
+    if (i) { const a = (i - 1) * 2; ri.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+  });
+  const rGeo = new THREE.BufferGeometry();
+  rGeo.setAttribute("position", new THREE.Float32BufferAttribute(rp, 3)); rGeo.setIndex(ri);
+  let water;
+  if (renderInfo.startsWith("HDR")) {
+    // Real reflections: the city is rendered upside down into a texture, then stretched into long
+    // vertical streaks and rippled, like a long exposure over moving water.
+    water = new Reflector(rGeo, {
+      textureWidth: Math.min(1024, innerWidth), textureHeight: Math.min(1024, innerHeight), clipBias: 0.002, multisample: 0,
+      shader: {
+        uniforms: { color: { value: null }, tDiffuse: { value: null }, textureMatrix: { value: null }, time: { value: 0 }, fogC: { value: FOG_C } },
+        vertexShader: `uniform mat4 textureMatrix; varying vec4 vUv; varying vec3 vW;
+          void main(){ vUv = textureMatrix * vec4(position, 1.); vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+        fragmentShader: `uniform sampler2D tDiffuse; uniform float time; uniform vec3 fogC; varying vec4 vUv; varying vec3 vW;
+          ${fogGLSL}
+          void main(){
+            vec4 uv = vUv;
+            float rip = sin(vW.x * .21 + time * 1.4) * .6 + sin(vW.x * .057 - vW.z * .02 + time * .8) * .4;
+            uv.x += rip * .0035 * uv.w;
+            vec3 c = vec3(0.);
+            for (int i = -5; i <= 5; i++) { vec4 u2 = uv; u2.y += float(i) * .0075 * uv.w; c += texture2DProj(tDiffuse, u2).rgb; }
+            c = c / 11. * .7 + vec3(.002, .004, .012);
+            gl_FragColor = vec4(haze(c, vW), 1.);
+          }`,
+      },
+    });
+    city.water = water.material;
+  } else {
+    city.water = new THREE.ShaderMaterial({
+      side: THREE.DoubleSide, uniforms: { time: { value: 0 }, fogC: { value: FOG_C } },
+      vertexShader: `varying vec3 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
+      fragmentShader: `uniform float time; uniform vec3 fogC; varying vec3 vW;
+        float h(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+        ${fogGLSL}
+        void main(){
+          float col = floor(vW.x / 5.);
+          float s = step(.7, h(vec2(col, 7.))) * (.55 + .45 * sin(time * 2.3 + col));
+          vec3 c = vec3(.004, .008, .02) + s * mix(vec3(.8, 1., .85), vec3(1., .8, .5), step(.6, h(vec2(col, 3.)))) * .45;
+          gl_FragColor = vec4(haze(c, vW), 1.);
+        }`,
+    });
+    water = new THREE.Mesh(rGeo, city.water);
+  }
+  water.rotation.x = -Math.PI / 2; water.position.y = G + 0.4; root.add(water);
+  interactive(water, () => (view === "window" ? "The Main" : null), () => toast(null, "The river Main, running west through the city towards the Rhine."));
+
+  /* --- banks: promenade lamps, a road with traffic, a line of trees --- */
+  const lights = [], lcol = [];
+  const lamp1 = (x, y, z, kind = 0) => { lights.push(x, y, z); [[1.8, 1.25, 0.55], [1.25, 1.45, 1.7], [1.1, 1.6, 0.9]][kind].forEach((v) => lcol.push(v)); };
+  const bank = (side, off) => samples.filter((_, i) => i % 3 === 0).map((p, i) => {
+    const t = river.getTangent(Math.min(1, (i * 3) / (samples.length - 1)));
+    return [p.x - t.y * (RW + off) * side, p.y + t.x * (RW + off) * side];
+  });
+  const roadL = bank(1, 30), promR = bank(-1, 8), promL = bank(1, 8);
+  promR.forEach(([x, z]) => z < -150 && lamp1(x, G + 5, z, 0));
+  promL.forEach(([x, z], i) => z < -150 && i % 2 === 0 && lamp1(x, G + 5, z, 1));
+  roadL.forEach(([x, z], i) => z < -150 && i % 3 === 0 && lamp1(x, G + 9, z, 0));
+  const treeGeo = new THREE.IcosahedronGeometry(1, 1);
+  const trees = new THREE.InstancedMesh(treeGeo, new THREE.MeshBasicMaterial({ color: "#03070a" }), 700);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), p = new THREE.Vector3();
+  let nTree = 0;
+  for (const [x, z] of [...bank(1, 18), ...bank(-1, 20)]) {
+    if (z > -200 || nTree >= 700 || rnd() < 0.3) continue;
+    const r = 4 + rnd() * 4; p.set(x + (rnd() - 0.5) * 6, G + r + 2, z); sc.set(r, r * 1.2, r);
+    trees.setMatrixAt(nTree++, m4.compose(p, q.identity(), sc));
+  }
+  trees.count = nTree; root.add(trees);
+  // traffic along the left-bank road: white headlights coming, red tail lights going
+  const carPath = new THREE.CatmullRomCurve3(roadL.filter(([, z]) => z < -180).map(([x, z]) => new THREE.Vector3(x, G + 1.5, z)));
+  const NC = 140, cGeo = new THREE.BufferGeometry();
+  cGeo.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(NC * 3), 3));
+  cGeo.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(NC * 3), 3));
+  city.cars = { pts: new THREE.Points(cGeo, new THREE.PointsMaterial({ size: 2.2, vertexColors: true, sizeAttenuation: true })), path: carPath, list: [] };
+  for (let i = 0; i < NC; i++) city.cars.list.push({ s: Math.random(), v: (0.004 + Math.random() * 0.003) * (i % 2 ? 1 : -1), lane: i % 2 ? 3 : -3 });
+  city.cars.pts.frustumCulled = false; root.add(city.cars.pts);
+
+  /* --- the bridge: a long deck and an asymmetric arch lit green --- */
+  const bz = -900, bx0 = -420, bx1 = 70;
+  M(new THREE.BoxGeometry(bx1 - bx0, 3, 14), dark, (bx0 + bx1) / 2, G + 9, bz, root);
+  M(new THREE.BoxGeometry(bx1 - bx0, 0.6, 14.4), glow(0.5, 0.75, 0.25), (bx0 + bx1) / 2, G + 7.4, bz, root); // the lit underside
+  for (let x = bx0; x <= bx1; x += 10) { lamp1(x, G + 12, bz - 6, 2); lamp1(x + 5, G + 12, bz + 6, 2); }
+  const archPts = [[-430, 9], [-300, 28], [-170, 50], [-95, 62], [-60, 50], [-10, 26], [60, 9]].map(([x, y]) => new THREE.Vector3(x, G + y, bz));
+  const archMat = glow(0.55, 1.9, 0.65);
+  M(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(archPts), 80, 1.8, 8), archMat, 0, 0, 0, root);
+  M(new THREE.CylinderGeometry(2.2, 2.6, 52, 10), archMat, -95, G + 36, bz, root);
+  for (let x = -400; x <= 40; x += 22) M(new THREE.CylinderGeometry(0.25, 0.25, 40, 4), glow(0.25, 0.7, 0.3), x, G + 25, bz, root).scale.y = 0.2 + 0.8 * Math.max(0, Math.sin(((x + 430) / 490) * Math.PI));
+
+  /* --- the skyline, left to right as it reads from the river --- */
+  const LM = [];
+  const at = (x, z) => (LM.push([x, z]), [x, z]);
+  // plan shapes are drawn in x/y and extruded upwards; shape y ends up as world −z
+  const extrude = (shape, h, mat, y0, parent, curve = 12) => {
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: h, bevelEnabled: false, curveSegments: curve });
+    geo.rotateX(-Math.PI / 2);
+    return M(geo, mat, 0, y0, 0, parent);
+  };
+  const roundRect = (w, d, r) => {
+    const s = new THREE.Shape(), x = -w / 2, y = -d / 2;
+    s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r);
+    s.lineTo(x + w, y + d - r); s.quadraticCurveTo(x + w, y + d, x + w - r, y + d);
+    s.lineTo(x + r, y + d); s.quadraticCurveTo(x, y + d, x, y + d - r);
+    s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y);
+    return s;
+  };
+  const poly = (pts) => new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
+  const rod = (a, b, r, mat, parent) => {
+    const m = M(new THREE.CylinderGeometry(r, r, a.distanceTo(b), 5), mat, 0, 0, 0, parent);
+    m.position.copy(a).lerp(b, 0.5); m.quaternion.setFromUnitVectors(UP, b.clone().sub(a).normalize());
+    return m;
+  };
+  // a church spire on the left bank
+  tower(null, "", ...at(-760, -980), (g) => {
+    const m = flood([0.5, 0.33, 0.22], 0, 95);
+    M(new THREE.BoxGeometry(14, 42, 14), m, 0, 21, 0, g);
+    M(new THREE.ConeGeometry(8.5, 52, 8), m, 0, 68, 0, g);
+    M(new THREE.BoxGeometry(40, 18, 22), m, 0, 9, 22, g);
+  });
+  tower(null, "", ...at(-640, -1240), (g) => M(new THREE.BoxGeometry(70, 48, 40), facade({ lit: 0.45 }), 0, 24, 0, g));
+  tower("Silberturm", "166 m, 1978. Storey-high aluminium panels with rounded edges; lifts and stairs sit in rounded shafts in niches on each side. For years the tallest building in Germany.", ...at(-500, -1560), (g) => {
+    extrude(roundRect(44, 40, 9), 151, facade({ base: "#15171d", lit: 0.55, floorH: 3.6, bay: 2.1, tint: [0.05, 0.05, 0.05] }), 0, g);
+    extrude(roundRect(44.4, 40.4, 9.2), 5, glow(1.6, 1.7, 1.8), 151, g);
+    extrude(roundRect(32, 28, 7), 10, facade({ base: "#1c1e24", lit: 0.15 }), 156, g);
+    const core = facade({ base: "#20232a", lit: 0.04, bay: 6 });
+    for (const sx of [-1, 1]) { M(new RoundedBoxGeometry(6, 158, 11, 2, 2.8), core, sx * 22.2, 79, -6, g); M(new RoundedBoxGeometry(6, 158, 11, 2, 2.8), core, sx * 22.2, 79, 8, g); }
+    corners(-500, -1560, 44, 40, [156, 100]);
+  });
+  tower("Deutsche Bank towers", "Two 155 m mirror-glass towers from 1984, nicknamed Soll und Haben: debit and credit. Their plans are offset so the windows don't look into each other.", ...at(-350, -1530), (g) => {
+    const stepped = (a, s) => {
+      const base = [[a, a - 2 * s], [a - s, a - 2 * s], [a - s, a - s], [a - 2 * s, a - s], [a - 2 * s, a]];
+      const pts = [];
+      for (let k = 0; k < 4; k++) { const c = Math.cos((k * Math.PI) / 2), sn = Math.sin((k * Math.PI) / 2); for (const [x, y] of base) pts.push([x * c - y * sn, x * sn + y * c]); }
+      return poly(pts);
+    };
+    const glassMat = facade({ base: "#0a1733", lit: 0.5, bay: 1.8 });
+    for (const [dx, dz, rot] of [[-26, 10, 0.78], [26, -14, 0.92]]) {
+      const t = new THREE.Group(); t.position.set(dx, 0, dz); t.rotation.y = rot; g.add(t);
+      extrude(stepped(18, 3.4), 143, glassMat, 0, t);
+      extrude(stepped(18.2, 3.45), 12, glow(0.3, 0.6, 2.3), 143, t);
+      corners(-350 + dx, -1530 + dz, 34, 34, [155, 90]);
+    }
+    M(new THREE.BoxGeometry(130, 22, 70), facade({ base: "#0b0f18", lit: 0.35 }), 0, 11, 30, g);
+  });
+  tower(null, "", ...at(-230, -1480), (g) => { M(new THREE.BoxGeometry(46, 160, 34), facade({ base: "#0b0d14", lit: 0.6, tint: [0.04, 0.04, 0.04] }), 0, 80, 0, g); corners(-230, -1480, 46, 34, [160]); });
+  tower(null, "", ...at(-120, -1560), (g) => {
+    M(new THREE.BoxGeometry(48, 140, 44), facade({ base: "#061410", lit: 0.6 }), 0, 70, 0, g);
+    const a = glow(1.7, 1.8, 1.9);
+    M(new THREE.BoxGeometry(1.6, 30, 1.6), a, -8, 152, 0, g).rotation.z = -0.5;
+    M(new THREE.BoxGeometry(1.6, 30, 1.6), a, 8, 152, 0, g).rotation.z = 0.5;
+    M(new THREE.BoxGeometry(14, 1.4, 1.6), a, 0, 148, 0, g);
+    corners(-120, -1560, 48, 44, [140]);
+  });
+  tower("Taunusturm", "170 m, 2014, at the edge of the Taunusanlage park.", ...at(-280, -1850), (g) => M(new THREE.BoxGeometry(36, 170, 36), facade({ lit: 0.4 }), 0, 85, 0, g));
+  tower(null, "", ...at(-10, -1500), (g) => {
+    M(new THREE.BoxGeometry(56, 165, 40), facade({ base: "#0b0c12", lit: 0.62, floorH: 3.4 }), 0, 82.5, 0, g);
+    M(new THREE.BoxGeometry(40, 18, 30), facade({ lit: 0.85, floorH: 2.2 }), 0, 174, 0, g);
+    corners(-10, -1500, 56, 40, [165, 110]);
+  });
+  tower(null, "", ...at(60, -1440), (g) => M(new THREE.BoxGeometry(44, 95, 36), facade({ lit: 0.5 }), 0, 47.5, 0, g));
+  tower("Commerzbank Tower", "259 m, 300 m with the spire. Norman Foster, 1997. A triangle with curved sides and rounded corners; four-storey sky gardens wind up round the central atrium.", ...at(150, -1600), (g) => {
+    const t = new THREE.Group(); t.rotation.y = 0.5; g.add(t);
+    const R = 37, bulge = 7, cut = 0.15;
+    const P = [0, 1, 2].map((i) => { const a = Math.PI / 2 + (i * 2 * Math.PI) / 3; return new THREE.Vector2(Math.cos(a) * R, Math.sin(a) * R); });
+    const tri = (k) => {
+      const Q = P.map((p) => p.clone().multiplyScalar(k)), s = new THREE.Shape();
+      for (let i = 0; i < 3; i++) {
+        const a = Q[i], b = Q[(i + 1) % 3], c = Q[(i + 2) % 3], mid = a.clone().add(b).multiplyScalar(0.5);
+        const s0 = a.clone().lerp(b, cut), s1 = b.clone().lerp(a, cut), ctrl = mid.clone().add(mid.clone().normalize().multiplyScalar(bulge * k));
+        if (!i) s.moveTo(s0.x, s0.y);
+        s.quadraticCurveTo(ctrl.x, ctrl.y, s1.x, s1.y);
+        const n0 = b.clone().lerp(c, cut); s.quadraticCurveTo(b.x, b.y, n0.x, n0.y);  // the rounded corner
+      }
+      return s;
+    };
+    const side = (i, k) => { // one curved office wing as a thin slab, for the storeys where another side is a garden
+      const a = P[i].clone().multiplyScalar(k), b = P[(i + 1) % 3].clone().multiplyScalar(k), mid = a.clone().add(b).multiplyScalar(0.5);
+      const s0 = a.clone().lerp(b, cut), s1 = b.clone().lerp(a, cut), ctrl = mid.clone().add(mid.clone().normalize().multiplyScalar(bulge * k)), inn = 0.8;
+      const s = new THREE.Shape(); s.moveTo(s0.x, s0.y); s.quadraticCurveTo(ctrl.x, ctrl.y, s1.x, s1.y);
+      s.lineTo(s1.x * inn, s1.y * inn); s.quadraticCurveTo(ctrl.x * inn, ctrl.y * inn, s0.x * inn, s0.y * inn); s.closePath();
+      return s;
+    };
+    const body = facade({ base: "#140f05", lit: 0.55, tint: [0.42, 0.32, 0.04], bay: 1.9, floorH: 3.8 });
+    const core = facade({ base: "#140f05", lit: 0.12, tint: [0.12, 0.2, 0.05], bay: 3 });  // the garden storeys: planting lit green behind glass
+    for (let k = 0; k < 5; k++) {
+      const y0 = k * 48, open = k % 3;
+      extrude(tri(1), 32, body, y0, t);
+      extrude(tri(0.82), 16, core, y0 + 32, t);
+      for (let i = 0; i < 3; i++) if (i !== open) extrude(side(i, 1), 16, body, y0 + 32, t);
+    }
+    const goldCore = glow(1.5, 1.2, 0.3);
+    for (const p of P) M(new THREE.CylinderGeometry(3.2, 3.2, 246, 10), goldCore, p.x * 0.86, 123, -p.y * 0.86, t);   // lit corner cores
+    extrude(tri(0.9), 13, glow(1.8, 1.45, 0.35), 240, t);
+    extrude(tri(0.7), 6, glow(1.2, 0.95, 0.25), 253, t);
+    M(new THREE.BoxGeometry(6, 18, 6), glow(1.6, 1.3, 0.3), 0, 268, 0, t);
+    const tip = new THREE.Vector3(0, 300, 0), lat = glow(1.1, 0.95, 0.4);
+    for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; rod(new THREE.Vector3(Math.cos(a) * 3, 276, Math.sin(a) * 3), tip, 0.35, lat, t); }
+    for (let y = 280; y < 300; y += 5) M(new THREE.TorusGeometry(3 * (300 - y) / 24, 0.25, 4, 12), lat, 0, y, 0, t).rotation.x = Math.PI / 2;
+    for (let y = 262; y <= 314; y += 13) beacons.push(150, G + Math.min(y, 300), -1600 + 1);
+    corners(150, -1600, 44, 44, [240, 180, 120]);
+  });
+  tower(null, "", ...at(235, -1520), (g) => {
+    M(new THREE.BoxGeometry(44, 195, 40), facade({ base: "#120e04", lit: 0.55, tint: [0.42, 0.34, 0.05] }), 0, 97.5, 0, g);
+    corners(235, -1520, 44, 40, [195]);
+  });
+  tower(null, "", ...at(300, -1470), (g) => M(new THREE.BoxGeometry(34, 140, 32), facade({ base: "#061023", lit: 0.5 }), 0, 70, 0, g));
+  tower("Main Tower", "200 m, 240 m with the antenna. Schweger + Partner, 1999. A frameless glass cylinder joined to a square tower with bronze profiles; the public viewing terrace is at 187 m.", ...at(420, -1640), (g, c) => {
+    M(new THREE.CylinderGeometry(27, 27, 199.5, 72), facade({ base: "#04101f", lit: 0.6, cyl: 27, center: c, bay: 1.35 }), 0, 99.75, 0, g);
+    M(new THREE.BoxGeometry(42, 170, 46), facade({ base: "#140d06", lit: 0.55, bay: 1.5, tint: [0.035, 0.022, 0.006] }), 34, 85, 20, g);
+    M(new THREE.TorusGeometry(27.4, 0.55, 6, 72), glow(1.6, 1.7, 1.9), 0, 187, 0, g).rotation.x = Math.PI / 2;   // the viewing terrace
+    M(new THREE.TorusGeometry(27.4, 0.4, 6, 72), glow(1.0, 1.1, 1.3), 0, 199.2, 0, g).rotation.x = Math.PI / 2;
+    M(new THREE.CylinderGeometry(10, 12, 7, 20), antenna, 0, 203, 0, g);
+    const tip = new THREE.Vector3(0, 240, 0), lat = glow(1.2, 1.25, 1.4);
+    for (let i = 0; i < 3; i++) { const a = (i / 3) * Math.PI * 2; rod(new THREE.Vector3(Math.cos(a) * 3.5, 206, Math.sin(a) * 3.5), tip, 0.4, lat, g); }
+    for (let y = 210; y < 240; y += 6) M(new THREE.TorusGeometry(3.5 * (240 - y) / 34, 0.3, 4, 12), lat, 0, y, 0, g).rotation.x = Math.PI / 2;
+    beacons.push(420, G + 241, -1640, 420, G + 222, -1640, 420, G + 205, -1640);
+    corners(454, -1620, 42, 46, [170]);
+  });
+  tower(null, "", ...at(530, -1500), (g) => M(new THREE.BoxGeometry(36, 112, 30), facade({ lit: 0.5 }), 0, 56, 0, g));
+  tower(null, "", ...at(600, -1560), (g) => M(new THREE.BoxGeometry(32, 118, 32), facade({ lit: 0.55 }), 0, 59, 0, g));
+  tower("Kaiserdom", "Frankfurt Cathedral, St. Bartholomew. Its 95 m red sandstone tower was finished in 1877 after a fire.", ...at(640, -1280), (g) => {
+    const m = flood([0.95, 0.38, 0.2], 0, 95);
+    M(new THREE.BoxGeometry(30, 26, 90), m, 0, 13, 45, g);
+    M(new THREE.BoxGeometry(24, 52, 24), m, 0, 26, 0, g);
+    M(new THREE.CylinderGeometry(10, 12, 24, 8), m, 0, 64, 0, g);
+    M(new THREE.CylinderGeometry(7.5, 9, 10, 8), m, 0, 81, 0, g);
+    M(new THREE.ConeGeometry(7.5, 10, 8), m, 0, 91, 0, g);
+    for (const [dx, dz] of [[-12, -12], [12, -12], [-12, 12], [12, 12]]) M(new THREE.ConeGeometry(1.6, 9, 6), m, dx, 57, dz, g);
+  });
+  tower(null, "", ...at(330, -1230), (g) => { const m = flood([0.75, 0.62, 0.45], 0, 50); M(new THREE.BoxGeometry(12, 32, 12), m, 0, 16, 0, g); M(new THREE.CylinderGeometry(4, 6, 14, 8), m, 0, 39, 0, g); M(new THREE.ConeGeometry(4, 8, 8), m, 0, 50, 0, g); });
+  tower(null, "", ...at(40, -1160), (g) => { const m = flood([0.8, 0.66, 0.5], 0, 48); M(new THREE.BoxGeometry(11, 30, 11), m, 0, 15, 0, g); M(new THREE.CylinderGeometry(4.5, 5.5, 14, 8), m, 0, 37, 0, g); M(new THREE.ConeGeometry(4.5, 9, 8), m, 0, 48, 0, g); });
+  tower(null, "", ...at(760, -1360), (g) => M(new THREE.BoxGeometry(40, 64, 30), facade({ lit: 0.45 }), 0, 32, 0, g));
+  // further back, between and behind the front row
+  tower("Messeturm", "257 m, Helmut Jahn, 1991. Red granite and glass; a square shaft turns into a cylinder that steps back twice, crowned by a pyramid in three steps. Locals call it the pencil.", ...at(-760, -2600), (g, c) => {
+    const a = 20.5, ch = 5.5;
+    extrude(poly([[a - ch, -a], [a, -a + ch], [a, a - ch], [a - ch, a], [-a + ch, a], [-a, a - ch], [-a, -a + ch], [-a + ch, -a]]), 200,
+      facade({ base: "#2a120c", lit: 0.38, floorH: 3.9, bay: 2.4, tint: [0.05, 0.015, 0.008] }), 0, g);
+    M(new THREE.CylinderGeometry(19.5, 19.5, 22, 48), facade({ base: "#1b0d08", lit: 0.6, cyl: 19.5, center: c }), 0, 211, 0, g);
+    M(new THREE.CylinderGeometry(17, 17, 6, 48), glow(0.6, 0.42, 0.24), 0, 225, 0, g);
+    M(new THREE.CylinderGeometry(15, 15, 6, 48), glow(0.8, 0.56, 0.3), 0, 231, 0, g);
+    const pyr = glow(1.5, 1.05, 0.55);
+    M(new THREE.CylinderGeometry(13, 17.5, 8, 4), pyr, 0, 238, 0, g).rotation.y = Math.PI / 4;
+    M(new THREE.CylinderGeometry(8.5, 12.5, 7, 4), pyr, 0, 245.5, 0, g).rotation.y = Math.PI / 4;
+    M(new THREE.ConeGeometry(8, 8, 4), pyr, 0, 253, 0, g).rotation.y = Math.PI / 4;
+    beacons.push(-760, G + 258, -2600);
+  });
+  tower("Westend Tower", "208 m, 1993. Locals call the ring on top the crown.", ...at(-430, -2250), (g) => {
+    M(new THREE.BoxGeometry(44, 190, 44), facade({ lit: 0.35 }), 0, 95, 0, g);
+    const crown = glow(1.6, 1.65, 1.8);
+    M(new THREE.TorusGeometry(25, 1, 6, 48), crown, 0, 190, 0, g).rotation.x = Math.PI / 2;
+    for (let i = 0; i < 28; i++) { const a = (i / 28) * Math.PI * 2; M(new THREE.CylinderGeometry(0.7, 0.7, 18, 5), crown, Math.cos(a) * 25, 199, Math.sin(a) * 25, g); }
+  });
+  tower("Opernturm", "170 m, 2009, next to the Alte Oper.", ...at(-120, -2050), (g) => M(new THREE.BoxGeometry(44, 170, 30), facade({ lit: 0.4 }), 0, 85, 0, g));
+  tower("Omniturm", "190 m, 2019. A few floors in the middle swing out of line.", ...at(40, -1900), (g) => {
+    const m = facade({ lit: 0.45 });
+    M(new THREE.BoxGeometry(36, 60, 36), m, 0, 30, 0, g);
+    for (let i = 0; i < 10; i++) { const s = Math.sin((i / 9) * Math.PI); M(new THREE.BoxGeometry(36, 4, 36), m, s * 6, 62 + i * 4, s * 3, g); }
+    M(new THREE.BoxGeometry(36, 90, 36), m, 0, 145, 0, g);
+  });
+  tower("Europaturm", "337.5 m, Frankfurt's TV tower from 1979, nicknamed Ginnheimer Spargel: the asparagus of Ginnheim.", ...at(-1400, -3600), (g, c) => {
+    M(new THREE.CylinderGeometry(7, 10, 220, 24), antenna, 0, 110, 0, g);
+    M(new THREE.CylinderGeometry(32, 24, 22, 40), facade({ lit: 0.55, cyl: 32, center: c, floorH: 5 }), 0, 231, 0, g);
+    M(new THREE.CylinderGeometry(2, 4.5, 95, 8), antenna, 0, 290, 0, g);
+    beacons.push(-1400, G + 245, -3600, -1400, G + 337, -3600);
+  });
+
+  /* --- everything else: old town low by the river, mid-rise behind, the far bank low and dark --- */
+  const N = 1600, bGeo = new THREE.BoxGeometry(1, 1, 1);
+  bGeo.translate(0, 0.5, 0);
+  const blocks = new THREE.InstancedMesh(bGeo, facade({ base: "#060910", lit: 0.24 }), N);
+  const tops = new THREE.InstancedMesh(bGeo, facade({ base: "#070a12", lit: 0.12 }), N);
+  let n = 0, nt = 0;
+  for (let tries = 0; n < N && tries < 40000; tries++) {
+    const x = (rnd() * 2 - 1) * 2600, z = -250 - rnd() * 3600;
+    if (nearRiver(x, z, 40)) continue;
+    if (LM.some(([lx, lz]) => Math.hypot(x - lx, z - lz) < 50)) continue;
+    const behind = z < -1300 && x > -900, oldTown = z > -1450 && z < -1050 && x > -60, leftBank = x < -300 && z > -1350;
+    let hgt = 10 + rnd() * 18;
+    if (behind) hgt = 25 + rnd() * (Math.hypot(x - 50, z + 1650) < 700 ? 70 : 35);
+    if (oldTown) hgt = 12 + rnd() * 10;
+    if (leftBank) hgt = 8 + rnd() * 14;
+    if (z > -700 && x > -60) hgt = 14 + rnd() * 26; // our own bank, below the window
+    const bw = 14 + rnd() * 26, bd = 14 + rnd() * 26;
+    p.set(x, G, z); sc.set(bw, hgt, bd); q.setFromAxisAngle(UP, (rnd() - 0.5) * 0.4);
+    blocks.setMatrixAt(n++, m4.compose(p, q, sc));
+    if (hgt > 30 && rnd() < 0.5) { p.set(x, G + hgt, z); sc.set(bw * 0.55, 4 + rnd() * 10, bd * 0.55); tops.setMatrixAt(nt++, m4.compose(p, q, sc)); }
+  }
+  blocks.count = n; tops.count = nt; root.add(blocks, tops);
+
+  /* --- street lights across the districts, at their own angles --- */
+  for (let dx = -2600; dx < 2600; dx += 650) for (let dz = -250; dz > -3800; dz -= 650) {
+    const ang = (rnd() - 0.5) * 0.9, ca = Math.cos(ang), sa = Math.sin(ang), sp = 50 + rnd() * 40, kind = rnd() < 0.65 ? 0 : 1;
+    for (let a = rnd() * sp; a < 650; a += sp * (0.8 + rnd() * 0.4)) for (let b = 0; b < 650; b += 10 + rnd() * 6) {
+      for (const [uu, vv] of [[a, b], [b, a]]) {
+        if (rnd() > 0.6) continue;
+        const lx = uu - 325, lz = vv - 325;
+        const x = dx + 325 + lx * ca - lz * sa, z = dz - 325 + lx * sa + lz * ca;
+        if (z > -240 || nearRiver(x, z, 12)) continue;
+        lamp1(x, G + 0.8, z, rnd() < 0.15 ? 1 - kind : kind);
+      }
+    }
+  }
+  const lGeo = new THREE.BufferGeometry();
+  lGeo.setAttribute("position", new THREE.Float32BufferAttribute(lights, 3));
+  lGeo.setAttribute("color", new THREE.Float32BufferAttribute(lcol, 3));
+  root.add(new THREE.Points(lGeo, new THREE.PointsMaterial({ size: 2.2, vertexColors: true, sizeAttenuation: true })));
+
+  /* --- red aviation lights, on tower corners and spires --- */
+  const bGeo2 = new THREE.BufferGeometry();
+  bGeo2.setAttribute("position", new THREE.Float32BufferAttribute(beacons, 3));
+  city.beacons = new THREE.Points(bGeo2, new THREE.PointsMaterial({ color: new THREE.Color(4, 0.3, 0.2), size: 4.5, sizeAttenuation: true, transparent: true, fog: false }));
+  root.add(city.beacons);
+
+  /* --- planes on approach to FRA, low under the clouds --- */
+  const plGeo = new THREE.BufferGeometry();
+  plGeo.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(12), 3));
+  plGeo.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(12), 3));
+  city.planes = new THREE.Points(plGeo, new THREE.PointsMaterial({ size: 9, vertexColors: true, sizeAttenuation: true, fog: false }));
+  city.planes.frustumCulled = false;
+  root.add(city.planes);
+}
+
+const PLANE_A = new THREE.Vector3(-3500, 420, -3600), PLANE_B = new THREE.Vector3(3500, 260, -2600), planeP = new THREE.Vector3(), carP = new THREE.Vector3();
+function updateCity(t, dt) {
+  if (city.water.uniforms.time) city.water.uniforms.time.value = REDUCED ? 0 : t;
+  city.sky.uniforms.time.value = t;
+  city.beacons.material.opacity = t % 1.6 < 0.6 ? 1 : 0.08;
+  // sheet lightning somewhere behind the clouds, every half minute or so
+  if (!REDUCED && t > city.nextFlash) { city.flash = 1; city.nextFlash = t + 20 + Math.random() * 40; setTimeout(() => sfx.thunder(), 1200 + Math.random() * 2500); }
+  city.flash = Math.max(0, city.flash - dt * (city.flash > 0.5 ? 6 : 2.5));
+  const f = city.flash * (0.6 + 0.4 * Math.sin(t * 60));
+  city.sky.uniforms.flash.value = f; rainMat.uniforms.flash.value = f; hemi.intensity = 1.0 + f * 1.2;
+  const pos = city.planes.geometry.attributes.position, col = city.planes.geometry.attributes.color;
+  [0, 0.5].forEach((o, i) => {
+    const k = (t / 110 + o) % 1;
+    planeP.lerpVectors(PLANE_A, PLANE_B, k);
+    pos.setXYZ(i * 2, planeP.x, planeP.y, planeP.z);
+    pos.setXYZ(i * 2 + 1, planeP.x - 6, planeP.y - 2, planeP.z);
+    const strobe = (t * 1.1 + o * 3) % 1 < 0.08 ? 3 : 0.15;
+    col.setXYZ(i * 2, strobe, strobe, strobe);
+    col.setXYZ(i * 2 + 1, 2.5, 0.2, 0.15);
+  });
+  pos.needsUpdate = true; col.needsUpdate = true;
+  const cp = city.cars.pts.geometry.attributes.position, cc = city.cars.pts.geometry.attributes.color;
+  city.cars.list.forEach((c, i) => {
+    c.s = (c.s + c.v * dt * (REDUCED ? 0 : 1) + 1) % 1;
+    city.cars.path.getPointAt(c.s, carP);
+    cp.setXYZ(i, carP.x + c.lane, carP.y, carP.z);
+    c.v > 0 ? cc.setXYZ(i, 2.4, 0.25, 0.15) : cc.setXYZ(i, 2.2, 2.2, 2.0);
+  });
+  cp.needsUpdate = true; cc.needsUpdate = true;
+}
+
+/* ================= the terminal screen ================= */
+const SW = 1024, SH = 768;
+const scr = document.createElement("canvas"); scr.width = SW; scr.height = SH;
+const sx = scr.getContext("2d");
+const screenTex = new THREE.CanvasTexture(scr);
+screenTex.colorSpace = THREE.SRGBColorSpace;
+const AMB = "#ffa028", DIM = "#9c6114", BG = "#000000", WHT = "#e6e6e6", BLU = "#1d3c8f", YEL = "#f2c230", NUM = "#c42b2b";
+const TF = (px, w = 500) => `${w} ${px}px IBM Plex Mono, monospace`;
+const term = { page: "home", buf: "", msg: "Type a page name and press GO, or press a line key.", scroll: 0, maxScroll: 0, hits: [], blink: true };
+
+function wrap(text, maxW) {
+  const out = []; let line = "";
+  for (const w of text.split(" ")) {
+    const t = line ? line + " " + w : w;
+    if (sx.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t;
+  }
+  if (line) out.push(line);
+  return out;
+}
+
+function drawScreen() {
+  const hits = [];
+  sx.fillStyle = BG; sx.fillRect(0, 0, SW, SH);
+  sx.textBaseline = "top";
+
+  // command line at the top, where you type
+  sx.fillStyle = "#151515"; sx.fillRect(20, 18, SW - 40, 44);
+  sx.font = TF(24, 600);
+  const typed = term.buf.toUpperCase();
+  sx.fillStyle = typed ? WHT : "#5c5c5c";
+  sx.fillText(typed || "TYPE ABOUT, PROJECTS, WRITING, CONTACT OR HELP", 32, 27);
+  if (term.blink) { sx.fillStyle = YEL; sx.fillRect(32 + (typed ? sx.measureText(typed).width + 3 : 0), 25, 13, 30); }
+  const gw = sx.measureText("<GO>").width + 20;
+  sx.fillStyle = "#1f8a3e"; sx.fillRect(SW - 20 - gw, 18, gw, 44);
+  sx.fillStyle = "#ffffff"; sx.fillText("<GO>", SW - 10 - gw, 27);
+  hits.push({ x: SW - 20 - gw, y: 18, w: gw, h: 44, act: () => { runCmd(); drawScreen(); } });
+
+  // title bar
+  sx.fillStyle = BLU; sx.fillRect(20, 70, SW - 40, 36);
+  sx.font = TF(20, 600); sx.fillStyle = "#ffffff";
+  const title = term.page === "home" ? "MAIN MENU" : CONTENT[term.page].title.toUpperCase();
+  sx.fillText(`${SITE.toUpperCase()}  ·  ${title}`, 30, 77);
+  const c = idxChg(), q = `FFM40 ${de(mkt.idx, 1)} ${c >= 0 ? "+" : ""}${de(c)}%`, tm = hhmm();
+  const tw = sx.measureText(tm).width;
+  sx.fillStyle = "#ffffff"; sx.fillText(tm, SW - 30 - tw, 77);
+  sx.fillStyle = c >= 0 ? UPC : DNC; sx.fillText(q, SW - 54 - tw - sx.measureText(q).width, 77);
+
+  // numbered menu
+  let x = 20; const my = 116;
+  sx.font = TF(20, 600);
+  ["home", ...PAGES].forEach((p, i) => {
+    const label = p === "home" ? "HOME" : CONTENT[p].title.toUpperCase();
+    const w = 30 + sx.measureText(label).width + 22, on = term.page === p;
+    sx.fillStyle = on ? AMB : "#1a1a1a"; sx.fillRect(x, my, w, 34);
+    sx.fillStyle = NUM; sx.fillRect(x, my, 28, 34);
+    sx.fillStyle = "#ffffff"; sx.fillText(String(i), x + 8, my + 6);
+    sx.fillStyle = on ? BG : AMB; sx.fillText(label, x + 38, my + 6);
+    hits.push({ x, y: my, w, h: 34, act: () => go(p) });
+    x += w + 8;
+  });
+
+  // body
+  const top = 162, bottom = SH - 64, left = 32, maxW = SW - 96;
+  sx.save(); sx.beginPath(); sx.rect(20, top, SW - 40, bottom - top); sx.clip();
+  let y = top + 14 - term.scroll;
+  if (term.page === "home") {
+    sx.fillStyle = WHT; sx.font = TF(50, 700); sx.fillText(SITE.toUpperCase(), left, y); y += 70;
+    sx.fillStyle = AMB; sx.font = TF(22);
+    for (const l of wrap(CONTENT.about ? CONTENT.about.blocks[0].text : "", maxW)) { sx.fillText(l, left, y); y += 30; }
+    y += 22; sx.fillStyle = WHT; sx.font = TF(19, 600);
+    sx.fillText("SELECT A PAGE, OR PRESS A LINE KEY ON THE DEALER BOARD", left, y); y += 40;
+    PAGES.forEach((p, i) => {
+      const t = CONTENT[p].title.toUpperCase();
+      sx.fillStyle = NUM; sx.fillRect(left, y, 30, 30);
+      sx.fillStyle = "#ffffff"; sx.font = TF(20, 600); sx.fillText(String(i + 1), left + 9, y + 3);
+      sx.fillStyle = AMB; sx.font = TF(22, 600); sx.fillText(t, left + 44, y + 2);
+      hits.push({ x: left, y, w: 44 + sx.measureText(t).width, h: 30, act: () => go(p) });
+      y += 42;
+    });
+  } else {
+    const pc = CONTENT[term.page];
+    sx.fillStyle = WHT; sx.font = TF(36, 700); sx.fillText(pc.title.toUpperCase(), left, y); y += 50;
+    sx.fillStyle = AMB; sx.fillRect(left, y, maxW, 2); y += 18;
+    let n = 0;
+    for (const b of pc.blocks) {
+      const indent = b.type === "li" ? 48 : 0;
+      if (b.type === "li") { n++; sx.fillStyle = WHT; sx.font = TF(22, 600); sx.fillText(n + ")", left, y); }
+      sx.font = TF(22);
+      for (const l of wrap(b.text, maxW - indent)) {
+        sx.fillStyle = b.href ? WHT : AMB;
+        sx.fillText(l, left + indent, y);
+        if (b.href) {
+          const w = sx.measureText(l).width;
+          sx.fillRect(left + indent, y + 27, w, 2);
+          if (y > top - 20 && y < bottom) hits.push({ x: left + indent, y, w, h: 30, act: () => toast(b.href, b.text) });
+        }
+        y += 30;
+      }
+      y += 14;
+    }
+  }
+  term.maxScroll = Math.max(0, y + term.scroll - bottom + 10);
+  sx.restore();
+  if (term.maxScroll > 0) {
+    const trackH = bottom - top, thumbH = Math.max(40, trackH * (trackH / (trackH + term.maxScroll)));
+    sx.fillStyle = DIM; sx.fillRect(SW - 30, top + (trackH - thumbH) * (term.scroll / term.maxScroll), 6, thumbH);
+  }
+
+  // status line
+  sx.fillStyle = "#151515"; sx.fillRect(20, SH - 52, SW - 40, 34);
+  sx.font = TF(17); sx.fillStyle = AMB; sx.fillText(term.msg.toUpperCase().slice(0, 64), 30, SH - 45);
+  sx.fillStyle = "#8c8c8c"; const r = "SIMULATED DATA"; sx.fillText(r, SW - 30 - sx.measureText(r).width, SH - 45);
+
+  term.hits = hits;
+  screenTex.needsUpdate = true;
+}
+
+function screenHit(uv) {
+  const px = uv.x * SW, py = (1 - uv.y) * SH;
+  return term.hits.find((h) => px >= h.x && px <= h.x + h.w && py >= h.y && py <= h.y + h.h) || null;
+}
+function screenClick(uv) { const h = screenHit(uv); if (h) h.act(); }
+function scrollScreen(dy) {
+  term.scroll = Math.max(0, Math.min(term.maxScroll, term.scroll + dy));
+  drawScreen();
+}
+
+function go(page) {
+  term.page = page; term.scroll = 0;
+  if (page !== "home") { lightLine(PAGES.indexOf(page)); sfx.click(); history.replaceState(null, "", "#" + page); term.msg = `Line ${PAGES.indexOf(page) + 1}: ${CONTENT[page].title}.`; }
+  else { lightLine(-1); history.replaceState(null, "", location.pathname + location.search); term.msg = "Type help and press GO."; }
+  document.querySelectorAll("[data-go]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.go === page && view === "screen")));
+  drawScreen();
+}
+
+function runCmd() {
+  const cmd = term.buf.trim().toLowerCase(); term.buf = "";
+  if (!cmd) return;
+  if (PAGES.includes(cmd)) return go(cmd);
+  const say = (m) => (term.msg = m);
+  const sym = mkt.syms.find((s) => s.s.toLowerCase() === cmd);
+  if (sym) { const c = (sym.p / sym.open - 1) * 100; say(`${sym.s} ${de(sym.p)} ${c >= 0 ? "+" : ""}${de(c)}%  (simulated)`); drawScreen(); return; }
+  switch (cmd) {
+    case "help": case "?": say("ABOUT PROJECTS WRITING CONTACT HOME LAMP SOUND SIP FFM40 TV WINDOW BADGE CLOCK EXIT"); break;
+    case "home": case "cls": case "clear": go("home"); break;
+    case "lamp": toggleLamp(); break;
+    case "sound": case "floor": case "squawk": setSound(!soundOn); break;
+    case "sip": case "coffee": sip(); break;
+    case "ffm40": case "index": say(`FFM40 ${de(mkt.idx, 1)}  ${idxChg() >= 0 ? "+" : ""}${de(idxChg())}%  (simulated)`); break;
+    case "tv": setView("tv"); break;
+    case "window": case "rain": setView("window"); break;
+    case "date": case "time": say(new Date().toString().slice(0, 24)); break;
+    case "badge": case "ausweis": setView("badge"); break;
+    case "clock": case "world": say(ZONES.map((z) => z.n + " " + z.f.format(new Date()).slice(0, 5)).join("  ")); break;
+    case "exit": case "quit": setView("room"); break;
+    case "ls": case "dir": say("Tickers: " + mkt.syms.map((s) => s.s).join(" ")); break;
+    default: say(`'${cmd}' is not a command. Type help.`);
+  }
+  drawScreen();
+}
+
+/* ================= object behaviours ================= */
+function toggleLamp() {
+  lampOn = !lampOn;
+  const from = lamp.spot.intensity, to = lampOn ? 3 : 0;
+  sfx.click();
+  tween(0.15, (k) => {
+    lamp.spot.intensity = from + (to - from) * k;
+    const f = lamp.spot.intensity / 3;
+    lamp.bar.material.color.setRGB(0.1 + 2.1 * f, 0.12 + 2.38 * f, 0.15 + 2.85 * f);
+  });
+  term.msg = lampOn ? "Lamp on." : "Lamp off. Just the screens now.";
+  drawScreen();
+}
+
+function sip() {
+  if (mug.busy) return;
+  mug.busy = true;
+  if (mug.sips >= 5) {
+    mug.sips = 0; mug.coffee.visible = true; mug.coffee.position.y = 0.085;
+    term.msg = "Fresh coffee."; drawScreen(); mug.busy = false; return;
+  }
+  const lift = mug.rest.clone().add(new THREE.Vector3(-0.05, 0.12, 0.08));
+  tween(0.45, (k) => { mug.g.position.lerpVectors(mug.rest, lift, k); mug.g.rotation.x = 0.55 * k; }, () => {
+    mug.sips++;
+    mug.coffee.position.y = 0.085 - mug.sips * 0.014;
+    if (mug.sips >= 5) mug.coffee.visible = false;
+    tween(0.5, (k) => { mug.g.position.lerpVectors(lift, mug.rest, k); mug.g.rotation.x = 0.55 * (1 - k); }, () => (mug.busy = false));
+  });
+  term.msg = mug.sips >= 4 ? "Mug is empty. Click it again to refill." : `Sip ${mug.sips + 1}.`;
+  drawScreen();
+}
+
+function waterPlant() {
+  const b = plant.userData.base, s0 = plant.scale.x, s1 = Math.min(b * 1.35, s0 + b * 0.04);
+  tween(0.9, (k, raw) => { plant.rotation.z = Math.sin(raw * Math.PI * 4) * 0.05 * (1 - raw); plant.scale.setScalar(s0 + (s1 - s0) * k); });
+  toast(null, s1 >= b * 1.35 ? "The plant is as big as it gets." : "The plant looks happier.");
+}
+
+/* ================= audio: a trading floor, built from oscillators and noise =================
+   Voices are sawtooth buzz through two vowel formants, chopped into syllables and phrases,
+   far enough away and reverberant enough that no word is ever made out. Plus desk-phone
+   trills, keyboard clatter, the odd confirmation chime, HVAC, and rain on the glass. */
+let actx = null, soundOn = false, NOISE = null;
+const amb = { timer: null, out: null, dry: null, verb: null, voices: [], next: {} };
+function ctx() {
+  if (!actx) {
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    NOISE = actx.createBuffer(1, actx.sampleRate * 2, actx.sampleRate);
+    const d = NOISE.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    amb.out = actx.createGain(); amb.out.gain.value = 0;
+    const comp = actx.createDynamicsCompressor();
+    amb.out.connect(comp).connect(actx.destination);
+    const len = actx.sampleRate * 3.4, ir = actx.createBuffer(2, len, actx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const b = ir.getChannelData(ch); for (let i = 0; i < len; i++) b[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+    amb.verb = actx.createConvolver(); amb.verb.buffer = ir;
+    // mostly reverb: the floor sounds like it's remembered, echoing through an empty building
+    const wet = actx.createGain(); wet.gain.value = 0.8; amb.verb.connect(wet).connect(amb.out);
+    amb.dry = actx.createGain(); amb.dry.gain.value = 0.18; amb.dry.connect(amb.out);
+    // HVAC rumble and rain on the glass, looping
+    const bed = (lo, hi, gain) => {
+      const s = actx.createBufferSource(); s.buffer = NOISE; s.loop = true;
+      const f1 = actx.createBiquadFilter(); f1.type = "highpass"; f1.frequency.value = lo;
+      const f2 = actx.createBiquadFilter(); f2.type = "lowpass"; f2.frequency.value = hi;
+      const g = actx.createGain(); g.gain.value = gain;
+      s.connect(f1).connect(f2).connect(g).connect(amb.out); s.start();
+    };
+    bed(30, 320, 0.16); bed(1200, 7000, 0.035);
+    for (let i = 0; i < 14; i++) amb.voices.push({ f0: 90 + Math.random() * 140, pan: Math.random() * 2 - 1, gain: 0.012 + Math.random() * 0.03, next: 0, left: 0 });
+  }
+  if (actx.state === "suspended") actx.resume();
+  return actx;
+}
+function route(node, pan) {
+  const p = actx.createStereoPanner(); p.pan.value = pan;
+  node.connect(p); p.connect(amb.dry); p.connect(amb.verb);
+}
+function burst(t, dur, freq, gain, type, pan = 0, toAmb = true) {
+  const s = actx.createBufferSource(); s.buffer = NOISE;
+  const f = actx.createBiquadFilter(); f.type = type; f.frequency.value = freq;
+  const g = actx.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f).connect(g);
+  toAmb ? route(g, pan) : g.connect(actx.destination);
+  s.start(t, Math.random()); s.stop(t + dur + 0.05);
+}
+const VOWELS = [[730, 1090], [530, 1840], [270, 2290], [570, 840], [440, 1020], [660, 1720], [300, 870], [490, 1350]];
+function syllable(t, v, dur, loud) {
+  const o = actx.createOscillator(); o.type = "sawtooth";
+  const f0 = v.f0 * (loud ? 1.35 : 1) * (0.92 + Math.random() * 0.18);
+  o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * (0.85 + Math.random() * 0.3), t + dur);
+  const [a, b] = VOWELS[Math.floor(Math.random() * VOWELS.length)];
+  const f1 = actx.createBiquadFilter(); f1.type = "bandpass"; f1.frequency.value = a; f1.Q.value = 5;
+  const f2 = actx.createBiquadFilter(); f2.type = "bandpass"; f2.frequency.value = b; f2.Q.value = 7;
+  const g = actx.createGain(), peak = v.gain * (loud ? 3 : 1);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(f1); o.connect(f2); f1.connect(g); f2.connect(g); route(g, v.pan);
+  o.start(t); o.stop(t + dur + 0.05);
+  if (Math.random() < 0.3) burst(t, 0.035, 3800, peak * 0.6, "highpass", v.pan);
+}
+function phoneTrill(t, pan) {
+  const o = actx.createOscillator(); o.type = "square";
+  const g = actx.createGain(); g.gain.value = 0;
+  const f = actx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 1300; f.Q.value = 2;
+  for (let r = 0; r < 2; r++) {
+    const t0 = t + r * 1.2;
+    for (let i = 0; i < 16; i++) o.frequency.setValueAtTime(i % 2 ? 1400 : 1050, t0 + i * 0.05);
+    g.gain.setValueAtTime(0.018, t0); g.gain.setValueAtTime(0, t0 + 0.8);
+  }
+  o.connect(f).connect(g); route(g, pan); o.start(t); o.stop(t + 2.1);
+}
+function chime(t, pan) {
+  const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = 1320;
+  g.gain.setValueAtTime(0.02, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.4);
+  o.connect(g); route(g, pan); o.start(t); o.stop(t + 1.5);
+}
+function scheduleFloor() {
+  const t0 = actx.currentTime, ahead = t0 + 0.25, R = Math.random, N = amb.next;
+  for (const v of amb.voices) {
+    while (v.next < ahead) {
+      if (v.next < t0) v.next = t0 + R() * 2;
+      if (v.left <= 0) { v.left = 3 + Math.floor(R() * 12); v.loud = R() < 0.05; v.next += 0.4 + R() * 3.5; continue; }
+      const dur = 0.07 + R() * 0.16;
+      syllable(v.next, v, dur, v.loud);
+      v.next += dur + 0.015 + R() * 0.06; v.left--;
+    }
+  }
+  if (!N.phone || N.phone < t0) N.phone = t0 + 4 + R() * 10;
+  if (N.phone < ahead) { phoneTrill(N.phone, R() * 2 - 1); N.phone = t0 + 6 + R() * 12; }
+  if (!N.keys || N.keys < t0) N.keys = t0 + R() * 2;
+  if (N.keys < ahead) { const pan = R() * 2 - 1, n = 4 + Math.floor(R() * 14); for (let i = 0; i < n; i++) burst(N.keys + i * (0.06 + R() * 0.07), 0.018, 2600, 0.025, "highpass", pan); N.keys = t0 + 1 + R() * 3; }
+  if (!N.chime || N.chime < t0) N.chime = t0 + 15 + R() * 25;
+  if (N.chime < ahead) { chime(N.chime, R() * 2 - 1); N.chime = t0 + 15 + R() * 30; }
+}
+const sfx = {
+  tick() { if (soundOn) burst(actx.currentTime, 0.025, 3200, 0.06, "highpass", 0, false); },
+  click() { if (soundOn) burst(actx.currentTime, 0.04, 1800, 0.12, "bandpass", 0, false); },
+  dial() {
+    if (!soundOn) return;
+    const t = actx.currentTime, g = actx.createGain(); g.gain.setValueAtTime(0.05, t); g.gain.setValueAtTime(0, t + 1.6); g.connect(actx.destination);
+    for (const f of [350, 440]) { const o = actx.createOscillator(); o.frequency.value = f; o.connect(g); o.start(t); o.stop(t + 1.7); }
+  },
+  thunder() {
+    if (!soundOn) return;
+    const t = actx.currentTime;
+    burst(t, 3.5, 140, 0.35, "lowpass", (Math.random() - 0.5) * 0.6);
+    burst(t + 0.2, 2.5, 90, 0.3, "lowpass", 0);
+  },
+};
+function setSound(on) {
+  soundOn = on;
+  $("#sound").setAttribute("aria-pressed", String(on));
+  $("#sound").textContent = on ? "Sound on" : "Sound";
+  if (on) {
+    const a = ctx();
+    amb.out.gain.setTargetAtTime(0.9, a.currentTime, 0.6);
+    clearInterval(amb.timer); amb.timer = setInterval(scheduleFloor, 60);
+  } else if (actx) {
+    amb.out.gain.setTargetAtTime(0, actx.currentTime, 0.2);
+    clearInterval(amb.timer); amb.timer = null;
+  }
+  if (squawk.led) squawk.led.material.color.setRGB(on ? 0.4 : 0.05, on ? 2.6 : 0.2, on ? 0.6 : 0.08);
+  if (roomReady) { term.msg = on ? "Floor sound on." : "Floor sound off."; drawScreen(); }
+}
+$("#sound").addEventListener("click", () => setSound(!soundOn));
+
+/* ================= views & camera ================= */
+let view = "room", camTween = null, lensFov = 0;
+function zoomFov(target) {
+  const from = camera.fov, to = target || (camera.aspect < 0.8 ? 58 : 42);
+  lensFov = target;
+  tween(1.3, (k) => { camera.fov = from + (to - from) * k; camera.updateProjectionMatrix(); });
+}
+function screenCamPos() {
+  const vfov = THREE.MathUtils.degToRad(camera.fov);
+  const needH = Math.max(0.278 * 1.25, (0.37 * 1.12) / camera.aspect);
+  return SCREEN_CENTER.clone().add(new THREE.Vector3(0, 0, needH / 2 / Math.tan(vfov / 2)));
+}
+function moveCam(pos, target, dur, done) {
+  const p0 = camera.position.clone(), t0 = controls.target.clone();
+  if (camTween) { const i = tweens.indexOf(camTween); if (i >= 0) tweens.splice(i, 1); }
+  camTween = tween(dur, (k) => { camera.position.lerpVectors(p0, pos, k); controls.target.lerpVectors(t0, target, k); camera.lookAt(controls.target); }, () => { camTween = null; done && done(); });
+}
+function setView(v, page) {
+  if (!roomReady) return;
+  if (v !== "window" && lensFov) zoomFov(0);
+  if (v === "screen") {
+    if (view !== "screen") moveCam(screenCamPos(), SCREEN_CENTER, 1.1);
+    view = "screen"; controls.enabled = false;
+    if (page) go(page); else document.querySelectorAll("[data-go]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.go === term.page)));
+  } else if (v === "window") {
+    view = "window"; controls.enabled = false;
+    zoomFov(32); // a longer lens, like the classic shot from the river
+    moveCam(new THREE.Vector3(-0.5, 1.6, -0.32), new THREE.Vector3(95, -95, -1550).applyAxisAngle(UP, CITY_TURN), 1.4);
+    toast(null, "Frankfurt in the rain, from the 45th floor. Point at a tower to see its name.");
+  } else if (v === "badge") {
+    view = "badge"; controls.enabled = false;
+    const c = badge.card.position;
+    moveCam(c.clone().add(new THREE.Vector3(0.02, 0.17, 0.07)), c.clone(), 1.1);
+    toast(null, "Betriebsausweis · topoftheblock · Handel / Trading · 45. OG · valid until 12/2027");
+  } else if (v === "tv") {
+    view = "tv"; controls.enabled = false;
+    const n = new THREE.Vector3(Math.sin(tv.g.rotation.y), 0, Math.cos(tv.g.rotation.y));
+    const d = Math.max(1.05, 0.75 / camera.aspect / Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
+    moveCam(tv.g.position.clone().addScaledVector(n, d).add(new THREE.Vector3(0, -0.05, 0)), tv.g.position.clone(), 1.2);
+    toast(null, "MAIN TV is a made-up channel. Every price on this floor is simulated.");
+  } else {
+    view = "room";
+    moveCam(ROOM_POS, ROOM_TARGET, 1.0, () => { if (view === "room") controls.enabled = true; });
+    document.querySelectorAll("[data-go]").forEach((b) => b.setAttribute("aria-pressed", "false"));
+  }
+  $("#back").hidden = view === "room";
+  $("#hint").hidden = view !== "room";
+}
+$("#back").addEventListener("click", () => setView("room"));
+document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => {
+  if (!roomReady) return;
+  if (!entered) enterBtn.click();
+  setView("screen", b.dataset.go);
+}));
+
+/* ================= toast ================= */
+let toastTimer;
+function toast(href, text) {
+  const el = $("#toast"), a = $("#toast-link");
+  if (href) { a.href = href; a.textContent = "Open " + href.replace(/^https?:\/\//, "").replace(/\/$/, "") + " ↗"; }
+  else { a.removeAttribute("href"); a.textContent = text; }
+  el.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => (el.hidden = true), 6500);
+}
+$("#toast-x").addEventListener("click", () => ($("#toast").hidden = true));
+
+/* ================= pointer ================= */
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), tip = $("#tip");
+let down = null, dragScroll = null;
+function pickAt(e) {
+  const r = canvas.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  for (const h of ray.intersectObjects(pickables, true)) {
+    if (h.object.userData.passWhen && h.object.userData.passWhen()) continue;
+    let o = h.object;
+    while (o && !o.userData.act) o = o.parent;
+    if (o) return { act: o.userData.act, hit: h };
+  }
+  return null;
+}
+canvas.addEventListener("pointerdown", (e) => {
+  down = { x: e.clientX, y: e.clientY };
+  if (view === "screen") dragScroll = e.clientY;
+});
+canvas.addEventListener("pointermove", (e) => {
+  if (!roomReady || !entered) return;
+  if (dragScroll !== null && down && e.pointerType !== "mouse") { scrollScreen((dragScroll - e.clientY) * 1.6); dragScroll = e.clientY; return; }
+  const p = pickAt(e);
+  const label = p && p.act.label();
+  let point = !!label;
+  if (p && view === "screen" && p.hit.object === screenMesh) point = !!screenHit(p.hit.uv);
+  canvas.classList.toggle("point", point);
+  if (label && e.pointerType === "mouse") { tip.hidden = false; tip.textContent = label; tip.style.left = e.clientX + "px"; tip.style.top = e.clientY + "px"; }
+  else tip.hidden = true;
+});
+canvas.addEventListener("pointerleave", () => (tip.hidden = true));
+canvas.addEventListener("pointerup", (e) => {
+  dragScroll = null;
+  if (!down || !roomReady || !entered) return;
+  const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+  down = null;
+  if (moved > 6) return;
+  const p = pickAt(e);
+  if (p && p.act.label() !== null) p.act.click(p.hit);
+  else if (p && view === "screen" && p.hit.object === screenMesh) p.act.click(p.hit);
+  else if (view !== "room") setView("room");
+});
+canvas.addEventListener("wheel", (e) => { if (view === "screen") { e.preventDefault(); scrollScreen(e.deltaY); } }, { passive: false });
+
+/* ================= keyboard ================= */
+function pressKey(k) {
+  const m = keys.get(k.length === 1 ? k.toUpperCase() : k);
+  if (!m) return;
+  m.position.y = m.userData.y - 0.005;
+  pressed.push({ m, t: 0.12 });
+}
+addEventListener("keydown", (e) => {
+  if (!roomReady || !entered || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.target.closest && e.target.closest("button, a") && (e.key === "Enter" || e.key === " ")) return;
+  const k = e.key;
+  if (k === "Escape") { pressKey("Escape"); if (view !== "room") setView("room"); return; }
+  if (view === "screen" && ["ArrowDown", "ArrowUp", "PageDown", "PageUp"].includes(k)) {
+    e.preventDefault(); scrollScreen((k.includes("Down") ? 1 : -1) * (k.startsWith("Page") ? 300 : 60)); return;
+  }
+  if (!(k.length === 1 || k === "Backspace" || k === "Enter")) return;
+  e.preventDefault();
+  if (view !== "screen") setView("screen");
+  pressKey(k); sfx.tick();
+  if (k === "Enter") runCmd();
+  else if (k === "Backspace") term.buf = term.buf.slice(0, -1);
+  else if (term.buf === "" && /^[0-4]$/.test(k)) go(k === "0" ? "home" : PAGES[+k - 1]);
+  else if (term.buf.length < 36) term.buf += k;
+  term.blink = true;
+  drawScreen();
+});
+
+/* ================= loop ================= */
+let blinkT = 0, mktT = 0, tvT = 0, tickerT = 0, clockT = 0;
+function loop() {
+  requestAnimationFrame(loop);
+  if (document.hidden) { clock.getDelta(); return; }
+  const dt = Math.min(clock.getDelta(), 0.05), t = clock.elapsedTime;
+  stepTweens(dt);
+  if (view === "room" && !camTween) controls.update();
+
+  for (let i = pressed.length - 1; i >= 0; i--) { const p = pressed[i]; p.t -= dt; if (p.t <= 0) { p.m.position.y = p.m.userData.y; pressed.splice(i, 1); } }
+
+  blinkT += dt;
+  if (blinkT > 0.5) { blinkT = 0; term.blink = !term.blink; drawScreen(); }
+
+  mktT += dt;
+  if (mktT > 0.4) { mktT = 0; tickMarket(); drawMarkets(false); }
+  tickerT += dt;
+  if (tickerT > 3) { tickerT = 0; drawTicker(); }
+  ticker.offset.x = (t * 0.03) % 1;
+  tvT += dt;
+  if (tvT > 1 / 15) { drawTV(tvT); tvT = 0; }
+
+  clockT += dt;
+  if (clockT > 1) {
+    clockT = 0;
+    drawDeskClock();
+  }
+
+  screenMat.uniforms.time.value = t;
+  rainMat.uniforms.time.value = REDUCED ? 0 : t;
+  rainFall.uniforms.time.value = REDUCED ? 0 : t;
+  steamMat.uniforms.time.value = t;
+  steamMat.uniforms.alpha.value = mug.sips >= 5 || mug.busy || REDUCED ? 0 : 1;
+  grainPass.uniforms.time.value = t;
+  mug.steam.position.copy(mug.g.position).add(new THREE.Vector3(0, 0.2, 0));
+  mug.steam.quaternion.copy(camera.quaternion);
+  if (city.sky) updateCity(t, dt);
+  syncCityCam();
+
+  composer.render(dt);
+}
+
+/* ================= start ================= */
+if (hasGL2) ensureRoom();
+else { log("ERROR  This terminal needs WebGL 2, which this browser does not offer."); log("Open the page in a current Chrome, Firefox or Safari."); }
+</script>
+
+</body>
+</html>
