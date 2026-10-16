@@ -77,6 +77,9 @@ button { font: inherit; }
 .bar i { display: block; height: 100%; width: 0; background: var(--amber); transition: width .25s ease; }
 .boot-note { color: var(--muted); font-size: 11px; margin: 12px 0 0; }
 
+/* the terminal on its own, full screen, for browsers that can't draw the 3D floor */
+#term2d { position: absolute; left: 50%; top: calc(50% + 26px); transform: translate(-50%, -50%); width: min(100vw, calc((100vh - 60px) * 4 / 3)); height: auto; cursor: pointer; touch-action: none; }
+
 @media (max-width: 560px) {
   #hint { display: none; }
   .key { padding: 5px 6px; font-size: 10px; }
@@ -171,6 +174,24 @@ button { font: inherit; }
   </div>
 </main>
 
+<script>
+// Runs in every browser, before the 3D code: reports anything that stops the terminal from starting.
+(function () {
+  function show(m) { var l = document.getElementById("log"); if (l && !window.__ndReady) l.textContent += (l.textContent ? "\n" : "") + "ERROR  " + m; }
+  window.addEventListener("error", function (e) {
+    var t = e.target;
+    if (t && t !== window && t.src) show("Could not load " + t.src.replace(/^https?:\/\//, "").split("/").slice(0, 3).join("/") + ". Check the connection and reload.");
+    else if (e.message) show(e.message);
+  }, true);
+  window.addEventListener("unhandledrejection", function (e) { show(String((e.reason && e.reason.message) || e.reason)); });
+  setTimeout(function () { if (!window.__ndStarted) show("The 3D engine did not load. Check that cdn.jsdelivr.net is reachable, then reload."); }, 20000);
+})();
+</script>
+<script nomodule>
+document.getElementById("log").textContent = "ERROR  This browser is too old to run the terminal.\nOpen the page in a current Chrome, Edge, Firefox or Safari.";
+</script>
+<!-- import maps arrived in Safari 16.4; this shim fills them in for older browsers and does nothing elsewhere -->
+<script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.10.0/dist/es-module-shims.js"></script>
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
@@ -188,8 +209,11 @@ import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { Reflector } from "three/addons/objects/Reflector.js";
 
+window.__ndStarted = true;
 const $ = (s) => document.querySelector(s);
 const SITE = "topoftheblock";
+// phones, tablets and small laptops get fewer pixels, smaller shadow maps and less rain
+const LOW = matchMedia("(pointer: coarse)").matches || (navigator.hardwareConcurrency || 8) <= 4;
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -213,7 +237,7 @@ document.querySelectorAll("#flat section[data-page]").forEach((sec) => {
 
 /* ================= start-up ================= */
 const app = $("#app");
-let roomPromise = null, roomReady = false, entered = false;
+let roomPromise = null, roomReady = false, entered = false, mode = "3d";
 const hasGL2 = (() => { try { return !!document.createElement("canvas").getContext("webgl2"); } catch (e) { return false; } })();
 
 /* ================= boot screen ================= */
@@ -230,14 +254,16 @@ function ensureRoom() {
 async function bootRoom() {
   log("ND TERMINAL v1.0   LOGIN topoftheblock");
   progress(0.05);
-  await Promise.race([
+  if (document.fonts) await Promise.race([
     Promise.all(["500 20px IBM Plex Mono", "700 40px IBM Plex Mono", "600 40px Caveat", "700 40px Barlow Semi Condensed", "500 20px Barlow Semi Condensed"].map((f) => document.fonts.load(f))),
     new Promise((r) => setTimeout(r, 2500)),
   ]).catch(() => {});
   log("Fonts ............ ok"); progress(0.15); await frame();
-  buildRenderer();
+  try { buildRenderer(); }
+  catch (e) { console.error(e); return startTerminal2D("Video ............ no 3D (" + (e.message || "WebGL failed") + ")"); }
   log("Video ............ WebGL 2, " + renderInfo); progress(0.3); await frame();
-  buildRoom();
+  try { buildRoom(); }
+  catch (e) { console.error(e); return startTerminal2D("Trading floor .... failed (" + e.message + ")"); }
   log("Trading floor .... " + floorDesks + " desks, all empty"); progress(0.55); await frame();
   try { buildFrankfurt(); log("Frankfurt ........ raining"); }
   catch (e) { console.error(e); log("Frankfurt ........ not available"); } // the office still works without the view
@@ -248,13 +274,51 @@ async function bootRoom() {
   composer.render();
   log("Shaders .......... compiled"); progress(1); await frame();
   roomReady = true;
+  window.__ndReady = true;
   requestAnimationFrame(loop);
   enterBtn.disabled = false;
   enterBtn.focus({ preventScroll: true });
 }
 
+// Without WebGL 2 (or if the 3D build fails) the terminal still works: drawn flat, full screen, same keys.
+function startTerminal2D(reason) {
+  mode = "2d";
+  window.__ndReady = true;
+  log(reason);
+  log("Terminal ......... opening without the 3D floor");
+  progress(1);
+  enterBtn.textContent = "GO · Open the terminal";
+  enterBtn.disabled = false;
+  enterBtn.focus({ preventScroll: true });
+}
+function show2D() {
+  canvas.hidden = true;
+  $("#hint").hidden = true;
+  scr.id = "term2d";
+  scr.setAttribute("role", "img");
+  scr.setAttribute("aria-label", "The terminal: " + PAGES.map((p) => CONTENT[p].title).join(", "));
+  app.appendChild(scr);
+  view = "screen";
+  const h = location.hash.slice(1);
+  go(PAGES.includes(h) ? h : "home");
+  setInterval(() => { term.blink = !term.blink; drawScreen(); }, 500);
+  setInterval(() => { tickMarket(); }, 400);
+  const at2d = (e) => { const r = scr.getBoundingClientRect(); return { x: ((e.clientX - r.left) / r.width) * SW, y: ((e.clientY - r.top) / r.height) * SH }; };
+  let drag = null;
+  scr.addEventListener("pointerdown", (e) => (drag = { y: e.clientY, y0: e.clientY }));
+  scr.addEventListener("pointermove", (e) => { if (drag && e.pointerType !== "mouse") { scrollScreen((drag.y - e.clientY) * 2); drag.y = e.clientY; } });
+  scr.addEventListener("pointerup", (e) => {
+    const moved = drag ? Math.abs(e.clientY - drag.y0) : 0; drag = null;
+    if (moved > 6) return;
+    const p = at2d(e), hit = term.hits.find((h) => p.x >= h.x && p.x <= h.x + h.w && p.y >= h.y && p.y <= h.y + h.h);
+    if (hit) hit.act();
+  });
+  scr.addEventListener("wheel", (e) => { e.preventDefault(); scrollScreen(e.deltaY); }, { passive: false });
+}
+
 enterBtn.addEventListener("click", () => {
   entered = true;
+  if (mode === "2d") show2D();
   $("#boot").classList.add("out");
   setTimeout(() => ($("#boot").hidden = true), 750);
   try { setSound(true); } catch (e) { console.warn("No sound:", e); } // the click is the gesture the browser needs before it plays sound
@@ -272,12 +336,13 @@ const FOG_C = new THREE.Color().setRGB(0.014, 0.022, 0.085); // linear; the navy
 
 function buildRenderer() {
   renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: "high-performance" });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, LOW ? 1.25 : 1.75));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.1;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  canvas.addEventListener("webglcontextlost", (e) => { e.preventDefault(); toast(null, "The graphics card reset. Reload the page to bring the floor back."); });
 
   // Two scenes, two cameras: the office needs millimetre depth precision at 2 m, the city needs it at 3 km.
   // One camera spanning both makes screens sink into their bezels and distant towers break up.
@@ -321,7 +386,21 @@ function buildRenderer() {
   const roomPass = new RenderPass(scene, camera);
   roomPass.clear = false; roomPass.clearDepth = true; // draw the office on top of the city with a fresh depth buffer
   composer.addPass(roomPass);
-  if (canHalf) composer.addPass(new UnrealBloomPass(new THREE.Vector2(w, h), 0.45, 0.55, 0.85));
+  if (canHalf) {
+    // Bloom blurs every pixel into its neighbours, so one invalid or absurdly bright pixel would black out the
+    // whole frame (seen in Firefox). Clean the image first: drop NaN/Inf, cap brightness.
+    composer.addPass(new ShaderPass({
+      uniforms: { tDiffuse: { value: null } },
+      vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+      fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
+        void main(){
+          vec3 c = texture2D(tDiffuse, vUv).rgb;
+          bool bad = any(isnan(c)) || any(isinf(c)) || c.r != c.r || c.g != c.g || c.b != c.b;
+          gl_FragColor = vec4(bad ? vec3(0.) : clamp(c, 0., 32.), 1.);
+        }`,
+    }));
+    composer.addPass(new UnrealBloomPass(new THREE.Vector2(w, h), 0.45, 0.55, 0.85));
+  }
   renderInfo = `${canHalf ? "HDR" : "8-bit"}, ${isSafari || !canHalf ? "no MSAA" : "MSAA x4"}${canHalf ? ", bloom" : ""}`;
   grainPass = new ShaderPass({
     uniforms: { tDiffuse: { value: null }, time: { value: 0 } },
@@ -520,7 +599,7 @@ function buildRoom() {
   interactive(glass, () => (view === "screen" ? null : "Glass: look out over Frankfurt"), () => setView(view === "screen" ? "room" : "window"));
 
   /* --- rain falling past the glass, outside --- */
-  const RN = 2600, rp = new Float32Array(RN * 6), re = new Float32Array(RN * 2);
+  const RN = LOW ? 1200 : 2600, rp = new Float32Array(RN * 6), re = new Float32Array(RN * 2);
   for (let i = 0; i < RN; i++) {
     const x = X0 - 2 + Math.random() * (X1 - X0 + 6), y = Math.random() * 30, z = Z0 - 0.6 - Math.random() * 30;
     rp.set([x, y, z, x, y, z], i * 6); re[i * 2] = 0; re[i * 2 + 1] = 1;
@@ -586,7 +665,7 @@ function buildRoom() {
       void main(){
         vec3 c = texture2D(map, vUv).rgb;
         float lines = .93 + .07*sin(vUv.y*768.*3.14159);
-        float vig = pow(16.*vUv.x*vUv.y*(1.-vUv.x)*(1.-vUv.y), .18);
+        float vig = pow(max(16.*vUv.x*vUv.y*(1.-vUv.x)*(1.-vUv.y), 0.), .18);
         gl_FragColor = vec4(c*lines*vig*1.9 + vec3(.004,.006,.012), 1.);
       }`,
   });
@@ -694,7 +773,7 @@ function buildRoom() {
   sky.position.set(1.5, 3.4, -4); sky.target.position.set(0, 0.7, 0.3);
   sky.castShadow = true; sky.shadow.mapSize.set(1024, 1024);
   Object.assign(sky.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 1, far: 12 });
-  sky.shadow.mapSize.set(2048, 2048);
+  sky.shadow.mapSize.set(LOW ? 1024 : 2048, LOW ? 1024 : 2048);
   sky.shadow.camera.updateProjectionMatrix();
   sky.shadow.bias = -0.0005; sky.shadow.normalBias = 0.02;
   scene.add(sky, sky.target);
@@ -793,6 +872,7 @@ function buildTurret() {
   interactive(base, () => "Dealer board: press a line key", () => setView("screen"));
 }
 function lightLine(i) {
+  if (!lineKeys.length) return;
   lineKeys.forEach((l, j) => {
     const on = j === i;
     l.led.material.color.setRGB(on ? 0.4 : 0.05, on ? 3 : 0.1, on ? 0.6 : 0.05);
@@ -836,7 +916,7 @@ function buildMug() {
       void main(){
         float x = vUv.x - .5 + .09*sin(vUv.y*7. - time*1.6)*vUv.y;
         float w = .1 + .12*vUv.y;
-        float a = smoothstep(w, 0., abs(x)) * smoothstep(0., .2, vUv.y) * smoothstep(1., .45, vUv.y);
+        float a = (1. - smoothstep(0., w, abs(x))) * smoothstep(0., .2, vUv.y) * (1. - smoothstep(.45, 1., vUv.y));
         a *= .55 + .45*sin(vUv.y*13. - time*2.6);
         gl_FragColor = vec4(vec3(.85,.9,1.), a*.2*alpha);
       }`,
@@ -1197,7 +1277,7 @@ function buildFrankfurt() {
     // Real reflections: the city is rendered upside down into a texture, then stretched into long
     // vertical streaks and rippled, like a long exposure over moving water.
     water = new Reflector(rGeo, {
-      textureWidth: Math.min(1024, innerWidth), textureHeight: Math.min(1024, innerHeight), clipBias: 0.002, multisample: 0,
+      textureWidth: LOW ? 512 : Math.min(1024, innerWidth), textureHeight: LOW ? 512 : Math.min(1024, innerHeight), clipBias: 0.002, multisample: 0,
       shader: {
         uniforms: { color: { value: null }, tDiffuse: { value: null }, textureMatrix: { value: null }, time: { value: 0 }, fogC: { value: FOG_C } },
         vertexShader: `uniform mat4 textureMatrix; varying vec4 vUv; varying vec3 vW;
@@ -1685,14 +1765,14 @@ function runCmd() {
   switch (cmd) {
     case "help": case "?": say("ABOUT PROJECTS WRITING CONTACT HOME LAMP SOUND SIP FFM40 TV WINDOW BADGE CLOCK EXIT"); break;
     case "home": case "cls": case "clear": go("home"); break;
-    case "lamp": toggleLamp(); break;
+    case "lamp": if (mode === "3d") toggleLamp(); break;
     case "sound": case "floor": case "squawk": setSound(!soundOn); break;
-    case "sip": case "coffee": sip(); break;
+    case "sip": case "coffee": if (mode === "3d") sip(); break;
     case "ffm40": case "index": say(`FFM40 ${de(mkt.idx, 1)}  ${idxChg() >= 0 ? "+" : ""}${de(idxChg())}%  (simulated)`); break;
-    case "tv": setView("tv"); break;
-    case "window": case "rain": setView("window"); break;
+    case "tv": if (mode === "3d") setView("tv"); break;
+    case "window": case "rain": if (mode === "3d") setView("window"); break;
     case "date": case "time": say(new Date().toString().slice(0, 24)); break;
-    case "badge": case "ausweis": setView("badge"); break;
+    case "badge": case "ausweis": if (mode === "3d") setView("badge"); break;
     case "clock": case "world": say(ZONES.map((z) => z.n + " " + z.f.format(new Date()).slice(0, 5)).join("  ")); break;
     case "exit": case "quit": setView("room"); break;
     case "ls": case "dir": say("Tickers: " + mkt.syms.map((s) => s.s).join(" ")); break;
@@ -1774,7 +1854,8 @@ function ctx() {
   return actx;
 }
 function route(node, pan) {
-  const p = actx.createStereoPanner(); p.pan.value = pan;
+  const p = actx.createStereoPanner ? actx.createStereoPanner() : actx.createGain();
+  if (p.pan) p.pan.value = pan;
   node.connect(p); p.connect(amb.dry); p.connect(amb.verb);
 }
 function burst(t, dur, freq, gain, type, pan = 0, toAmb = true) {
@@ -1915,6 +1996,7 @@ function setView(v, page) {
 }
 $("#back").addEventListener("click", () => setView("room"));
 document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => {
+  if (mode === "2d") { if (!entered) enterBtn.click(); go(b.dataset.go); return; }
   if (!roomReady) return;
   if (!entered) enterBtn.click();
   setView("screen", b.dataset.go);
@@ -1983,16 +2065,16 @@ function pressKey(k) {
   pressed.push({ m, t: 0.12 });
 }
 addEventListener("keydown", (e) => {
-  if (!roomReady || !entered || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (!(roomReady || mode === "2d") || !entered || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.target.closest && e.target.closest("button, a") && (e.key === "Enter" || e.key === " ")) return;
   const k = e.key;
-  if (k === "Escape") { pressKey("Escape"); if (view !== "room") setView("room"); return; }
+  if (k === "Escape") { pressKey("Escape"); if (mode === "2d") go("home"); else if (view !== "room") setView("room"); return; }
   if (view === "screen" && ["ArrowDown", "ArrowUp", "PageDown", "PageUp"].includes(k)) {
     e.preventDefault(); scrollScreen((k.includes("Down") ? 1 : -1) * (k.startsWith("Page") ? 300 : 60)); return;
   }
   if (!(k.length === 1 || k === "Backspace" || k === "Enter")) return;
   e.preventDefault();
-  if (view !== "screen") setView("screen");
+  if (view !== "screen" && mode === "3d") setView("screen");
   pressKey(k); sfx.tick();
   if (k === "Enter") runCmd();
   else if (k === "Backspace") term.buf = term.buf.slice(0, -1);
@@ -2046,7 +2128,7 @@ function loop() {
 
 /* ================= start ================= */
 if (hasGL2) ensureRoom();
-else { log("ERROR  This terminal needs WebGL 2, which this browser does not offer."); log("Open the page in a current Chrome, Firefox or Safari."); }
+else { log("ND TERMINAL v1.0   LOGIN topoftheblock"); startTerminal2D("Video ............ no WebGL 2 in this browser"); }
 </script>
 
 </body>
