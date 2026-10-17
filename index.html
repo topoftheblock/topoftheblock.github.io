@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Night Desk</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Christian Block, AI and data engineer in Frankfurt. An empty trading floor at night on the 45th floor of OMNITURM, over the Roßmarkt; the terminal on the desk holds the site.">
+<meta name="description" content="Christian Block, AI and data engineer in Frankfurt. An empty trading floor at night on the 45th floor of a tower over the Roßmarkt; the terminal on the desk holds the site.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Caveat:wght@600&family=Barlow+Semi+Condensed:wght@500;700&display=swap">
@@ -122,7 +122,7 @@ button { font: inherit; }
 <body>
 
 <div id="app">
-  <canvas id="gl" aria-label="An empty trading floor at night on the 45th floor of a Frankfurt tower: a trader desk with six screens, a terminal keyboard, a dealer phone board, a company ID badge, a world clock and a Goethe University mug, rows of switched-off desks to both sides, and glass on two sides: OMNITURM's 45th floor, over the Roßmarkt, between FOUR and the Commerzbank Tower, in the rain." role="img"></canvas>
+  <canvas id="gl" aria-label="An empty trading floor at night on the 45th floor of a Frankfurt tower: a trader desk with six screens, a terminal keyboard, a dealer phone board, a company ID badge, a world clock and a Goethe University mug, rows of switched-off desks to both sides, and glass on two sides: 45 floors above the Roßmarkt, between FOUR and the Commerzbank Tower, in the rain." role="img"></canvas>
   <div class="lb t" aria-hidden="true"></div><div class="lb b" aria-hidden="true"></div>
 
   <div class="hud" id="hud-top">
@@ -144,7 +144,7 @@ button { font: inherit; }
   <div id="boot">
     <div class="signon">
       <p class="mark"><b>CHRISTIAN BLOCK</b></p>
-      <p class="sub">Frankfurt am Main · OMNITURM, 45. OG</p>
+      <p class="sub">Frankfurt am Main · 45. OG</p>
       <div class="bar" aria-hidden="true"><i id="bar"></i></div>
       <div id="log" aria-live="polite"></div>
       <button id="enter" hidden disabled>Enter</button>
@@ -257,6 +257,8 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
+import { SMAAPass } from "three/addons/postprocessing/SMAAPass.js";
 
 window.__ndStarted = true;
 const $ = (s) => document.querySelector(s);
@@ -350,6 +352,7 @@ async function bootRoom() {
   progress(0.75); await frame();
   syncCityCam();
   renderer.compile(cityScene, cityCam);
+  if (city.ready) try { reflectCity(); } catch (e) { console.warn("City reflections unavailable:", e); }
   renderer.compile(scene, camera);
   composer.render();
   log("Shaders .......... compiled"); progress(1); await frame();
@@ -405,7 +408,7 @@ enterBtn.addEventListener("click", () => {
 });
 
 /* ================= three.js core ================= */
-let renderer, scene, cityScene, camera, cityCam, controls, composer, grainPass, hemi, renderInfo = "";
+let renderInfo_ao = false, renderer, scene, cityScene, camera, cityCam, controls, composer, grainPass, hemi, renderInfo = "";
 const canvas = $("#gl");
 const clock = new THREE.Clock();
 const ROOM_POS = new THREE.Vector3(1.05, 1.48, 1.6);
@@ -464,6 +467,24 @@ function buildRenderer() {
   const roomPass = new RenderPass(scene, camera);
   roomPass.clear = false; roomPass.clearDepth = true; // draw the office on top of the city with a fresh depth buffer
   composer.addPass(roomPass);
+  // contact shadows: where the keyboard meets the mat, the mug the desk, the walls the floor
+  if (canHalf && !LOW) {
+    const ao = new GTAOPass(scene, camera, w, h);
+    ao.output = GTAOPass.OUTPUT.Default;
+    ao.blendIntensity = 0.85;
+    ao.updateGtaoMaterial({ radius: 0.12, distanceExponent: 1.5, thickness: 1.2, scale: 1.0, samples: 16 });
+    ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
+    // glass, rain, steam and glowing dots are not surfaces: hide them while the occlusion is measured
+    const render = ao.render.bind(ao), hidden = [];
+    ao.render = (...args) => {
+      scene.traverse((o) => { if (o.visible && (o.isPoints || o.isLine || (o.material && o.material.transparent))) { o.visible = false; hidden.push(o); } });
+      render(...args);
+      for (const o of hidden) o.visible = true;
+      hidden.length = 0;
+    };
+    composer.addPass(ao);
+    renderInfo_ao = true;
+  }
   if (canHalf) {
     // Bloom blurs every pixel into its neighbours, so one invalid or absurdly bright pixel would black out the
     // whole frame (seen in Firefox). Clean the image first: drop NaN/Inf, cap brightness.
@@ -479,7 +500,7 @@ function buildRenderer() {
     }));
     composer.addPass(new UnrealBloomPass(new THREE.Vector2(w, h), 0.45, 0.55, 0.85));
   }
-  renderInfo = `${canHalf ? "HDR" : "8-bit"}, ${isSafari || !canHalf ? "no MSAA" : "MSAA x4"}${canHalf ? ", bloom" : ""}`;
+  renderInfo = `${canHalf ? "HDR" : "8-bit"}, ${isSafari || !canHalf ? "no MSAA" : "MSAA x4"}${canHalf ? ", bloom" : ""}${renderInfo_ao ? ", AO" : ""}`;
   grainPass = new ShaderPass({
     uniforms: { tDiffuse: { value: null }, time: { value: 0 } },
     vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
@@ -500,6 +521,7 @@ function buildRenderer() {
   });
   composer.addPass(grainPass);
   composer.addPass(new OutputPass());
+  if (isSafari || !canHalf) composer.addPass(new SMAAPass(w * renderer.getPixelRatio(), h * renderer.getPixelRatio()));   // no MSAA here: smooth the edges after the fact
   resize();
   addEventListener("resize", resize);
 }
@@ -536,6 +558,30 @@ function canvasTex(w, h, draw, repeat) {
   if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat[0], repeat[1]); }
   t.userData = { canvas: c, ctx: g };
   return t;
+}
+// Real surfaces are never perfectly smooth: a fine grain in the normals and patchy roughness
+// (fingerprints, wear, the texture of laminate and leather) is most of what separates a photo from a render.
+function surfaceMaps(size, cell, amp, rough0, roughVar, repeat) {
+  const n = size * size, hgt = new Float32Array(n);
+  const oct = (sc, a) => {   // value noise, tiled
+    const g = Math.max(1, Math.round(size / sc)), lat = new Float32Array(g * g);
+    for (let i = 0; i < lat.length; i++) lat[i] = rnd();
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const fx = (x / size) * g, fy = (y / size) * g, x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0;
+      const L = (i, j) => lat[((j % g) * g + (i % g))];
+      const sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+      hgt[y * size + x] += a * ((L(x0, y0) * (1 - sx) + L(x0 + 1, y0) * sx) * (1 - sy) + (L(x0, y0 + 1) * (1 - sx) + L(x0 + 1, y0 + 1) * sx) * sy);
+    }
+  };
+  oct(cell, 1); oct(cell / 2, 0.5); oct(cell / 4, 0.25); oct(2, 0.35);
+  const mk = (fill) => { const c = document.createElement("canvas"); c.width = c.height = size; const g = c.getContext("2d"), im = g.createImageData(size, size); fill(im.data); g.putImageData(im, 0, 0);
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...repeat); t.anisotropy = 8; return t; };
+  const normal = mk((d) => { for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const h = (i, j) => hgt[((j + size) % size) * size + ((i + size) % size)];
+    let nx = (h(x - 1, y) - h(x + 1, y)) * amp, ny = (h(x, y - 1) - h(x, y + 1)) * amp, l = Math.hypot(nx, ny, 1);
+    const k = (y * size + x) * 4; d[k] = (nx / l * 0.5 + 0.5) * 255; d[k + 1] = (ny / l * 0.5 + 0.5) * 255; d[k + 2] = (1 / l * 0.5 + 0.5) * 255; d[k + 3] = 255; } });
+  const rough = mk((d) => { for (let i = 0; i < n; i++) { const v = Math.min(1, Math.max(0, rough0 + (hgt[i] / 2.1 - 0.5) * roughVar)) * 255; d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v; d[i * 4 + 3] = 255; } });
+  return { normalMap: normal, roughnessMap: rough, roughness: 1, normalScale: new THREE.Vector2(1, 1) };
 }
 let seed = 7;
 const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -628,13 +674,13 @@ function buildRoom() {
     for (let i = 0; i <= w; i += 256) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, h); g.moveTo(0, i); g.lineTo(w, i); g.stroke(); }
   }, [7, 5]);
   const M = {
-    floor: new THREE.MeshPhysicalMaterial({ map: concrete, roughness: 0.22, metalness: 0.05, clearcoat: 0.35, clearcoatRoughness: 0.3 }),
+    floor: new THREE.MeshPhysicalMaterial({ map: concrete, ...surfaceMaps(256, 64, 0.25, 0.3, 0.35, [14, 10]), metalness: 0.05, clearcoat: 0.3, clearcoatRoughness: 0.35 }),
     wall: std({ color: "#3a4452", roughness: 0.9 }),
     ceiling: std({ color: "#151a22", roughness: 1 }),
-    top: new THREE.MeshPhysicalMaterial({ color: "#c9ced6", roughness: 0.3, clearcoat: 0.4, clearcoatRoughness: 0.25 }),
+    top: new THREE.MeshPhysicalMaterial({ color: "#c9ced6", ...surfaceMaps(256, 32, 0.6, 0.42, 0.3, [5, 2]), clearcoat: 0.25, clearcoatRoughness: 0.35 }),   // HPL laminate, matt with a fine grain
     frame: std({ color: "#2b3038", roughness: 0.35, metalness: 0.8 }),
     black: std({ color: "#0a0c10", roughness: 0.4 }),
-    bezel: new THREE.MeshPhysicalMaterial({ color: "#0d0f13", roughness: 0.28, metalness: 0.1, clearcoat: 0.6, clearcoatRoughness: 0.2 }),
+    bezel: new THREE.MeshPhysicalMaterial({ color: "#0d0f13", ...surfaceMaps(128, 16, 0.5, 0.45, 0.25, [3, 3]), metalness: 0.1, clearcoat: 0.3, clearcoatRoughness: 0.3 }),   // textured plastic
     chair: std({ color: "#1b2230", roughness: 0.7 }),
     metal: std({ color: "#9aa3ad", roughness: 0.3, metalness: 0.9 }),
   };
@@ -674,9 +720,13 @@ function buildRoom() {
         float on = step(.8, h(col*3.1));
         float y = fract(vUv.y*1.2 + time*(.18+h(col)*.45) + h(col*7.7));
         float streak = (1.-smoothstep(.0,.14,abs(fract(g.x)-.5))) * smoothstep(.78,1.,y) * on;
-        vec2 dg = vUv*vec2(900.,230.);
-        float bead = step(.993, h2(floor(dg))) * (1.-smoothstep(.15,.45,length(fract(dg)-.5)));
-        gl_FragColor = vec4(vec3(.72,.82,1.), streak*.08 + bead*.3 + .025 + flash*.08);
+        // droplets: a few millimetres, dark inside with a bright rim, the way water on glass catches the light
+        vec2 dg = vUv*vec2(2600.,420.);
+        vec2 q = (fract(dg)-.5)*vec2(1.,.6);
+        float disk = smoothstep(.26,.2,length(q));
+        float glint = smoothstep(.09,.0,length(q-vec2(-.07,.06)));   // the small highlight on the upper side
+        float bead = step(.988, h2(floor(dg))) * (disk*.25 + glint);
+        gl_FragColor = vec4(vec3(.72,.82,1.), streak*.08 + bead*.18 + .025 + flash*.08);
       }`,
   });
   const glass = mesh(new THREE.PlaneGeometry(X1 - X0, H), rainMat, (X0 + X1) / 2, H / 2, Z0 + 0.05);
@@ -725,7 +775,7 @@ function buildRoom() {
 
   /* --- my trader desk --- */
   const desk = new THREE.Group(); scene.add(desk);
-  box(2.3, 0.035, 0.82, M.top, 0, DESK_Y - 0.0175, -0.2, desk);
+  mesh(new RoundedBoxGeometry(2.3, 0.035, 0.82, 3, 0.005), M.top, 0, DESK_Y - 0.0175, -0.2, desk);
   for (const x of [-1.1, 1.1]) box(0.05, DESK_Y - 0.035, 0.7, M.frame, x, (DESK_Y - 0.035) / 2, -0.2, desk);
   box(2.2, 0.04, 0.04, M.frame, 0, 0.35, -0.5, desk);
   box(2.3, 0.3, 0.02, M.frame, 0, DESK_Y - 0.2, -0.6, desk); // modesty panel
@@ -782,7 +832,7 @@ function buildRoom() {
     for (let i = 0; i < 1800; i++) { g.fillStyle = `rgba(${rnd() < 0.5 ? "0,0,0" : "90,95,105"},${0.05 + rnd() * 0.08})`; g.fillRect(rnd() * w, rnd() * h, 2, 2); }
     g.strokeStyle = "#3a3d44"; g.lineWidth = 2; g.setLineDash([6, 5]); g.strokeRect(9, 9, w - 18, h - 18);   // stitched edge
   });
-  mesh(new RoundedBoxGeometry(1.05, 0.003, 0.4, 2, 0.0014), new THREE.MeshPhysicalMaterial({ map: matTex, roughness: 0.62, sheen: 0.4, sheenColor: new THREE.Color("#5a6070") }), 0.2, DESK_Y + 0.0015, 0.09);
+  mesh(new RoundedBoxGeometry(1.0, 0.003, 0.33, 2, 0.0014), new THREE.MeshPhysicalMaterial({ map: matTex, ...surfaceMaps(256, 4, 0.35, 0.6, 0.15, [6, 2]), normalScale: new THREE.Vector2(0.6, 0.6), sheen: 0.4, sheenColor: new THREE.Color("#5a6070") }), 0.19, DESK_Y + 0.0015, 0.015);   // inside the desk's front edge (z 0.21)
   buildKeyboard();
   buildTurret();
   buildMug();
@@ -820,7 +870,7 @@ function buildRoom() {
   const row = (x, face) => {
     const short = x < 0 && x > -3;   // the bench beside my desk stops short of the glass: that corner holds my golf bag
     const L = short ? 3.3 : 4.6, zc = short ? 2.35 : 1.7;
-    box(0.8, 0.035, L, M.top, x, DESK_Y - 0.0175, zc);
+    mesh(new RoundedBoxGeometry(0.8, 0.035, L, 2, 0.005), M.top, x, DESK_Y - 0.0175, zc);
     box(0.04, DESK_Y, L - 0.2, M.frame, x - face * 0.38, DESK_Y / 2, zc);
     box(0.02, 0.32, L, M.frame, x - face * 0.4, DESK_Y + 0.16, zc); // the screen divider down the bench
     for (const z of short ? [1.15, 2.35, 3.55] : [-0.05, 1.15, 2.35, 3.55]) {
@@ -840,12 +890,12 @@ function buildRoom() {
       const bk = mesh(backGeo, M.chair, 0, 0.78, 0.22, ch); bk.rotation.x = -0.12;
       floorDesks++;
     }
-    interactive(scene.children[scene.children.length - 1], () => "An empty desk", () => toast(null, "Everyone went home hours ago. Every screen on this floor is off except yours."));
+    interactive(scene.children[scene.children.length - 1], () => "An empty desk", () => toast(null, "Empty desk. Screens off, logged out."));
   };
   row(-1.75, 1); row(-2.55, -1); row(-4.35, 1); row(-5.15, -1); row(-6.95, 1); row(-7.75, -1);
   row(1.75, -1); row(2.55, 1); row(4.35, -1); row(5.15, 1); row(6.95, -1); row(7.75, 1);
   const sbGeo = new THREE.BufferGeometry(); sbGeo.setAttribute("position", new THREE.Float32BufferAttribute(standby, 3));
-  scene.add(new THREE.Points(sbGeo, new THREE.PointsMaterial({ color: new THREE.Color(2.6, 0.9, 0.12), size: 0.012, sizeAttenuation: true })));
+  scene.add(new THREE.Points(sbGeo, new THREE.PointsMaterial({ color: new THREE.Color(1.3, 0.45, 0.06), size: 2.5, sizeAttenuation: false })));
 
   // exit signs, the only other light that stays on
   const exitTex = canvasTex(512, 160, (g, w, h) => { g.fillStyle = "#0e7a3a"; g.fillRect(0, 0, w, h); g.fillStyle = "#eafff0"; g.font = "700 62px IBM Plex Mono"; g.textBaseline = "middle"; g.fillText("NOTAUSGANG", 34, h / 2 + 2); });
@@ -884,25 +934,7 @@ function buildRoom() {
   scene.add(sky, sky.target);
   const screenGlow = new THREE.PointLight("#9cb8ff", 0.7, 2.5, 2); screenGlow.position.set(0, 1.2, 0.05); scene.add(screenGlow);
 
-  if (renderer.isWebGLRenderer) {
-    const pmrem = new THREE.PMREMGenerator(renderer), env = new THREE.Scene();
-    env.add(new THREE.Mesh(new THREE.SphereGeometry(50, 48, 24), new THREE.ShaderMaterial({
-      side: THREE.BackSide,
-      vertexShader: `varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
-      fragmentShader: `varying vec3 vD;
-        void main(){
-          float y = vD.y;
-          vec3 c = mix(vec3(.015,.02,.05), vec3(.004,.005,.01), smoothstep(-.1, .6, y));
-          c += vec3(.16,.13,.1) * smoothstep(.14, 0., abs(y + .03)) * smoothstep(-.1, -.5, vD.z);  // city glow through the glass
-          c += vec3(.5,.55,.65) * step(.993, fract(vD.x * 5.)) * step(.9, y);                      // ceiling strips
-          c += vec3(.25,.12,.03) * smoothstep(.06, 0., abs(y - .05)) * step(.6, vD.z);             // the dim floor behind
-          gl_FragColor = vec4(c, 1.);
-        }`,
-    })));
-    scene.environment = pmrem.fromScene(env, 0.02).texture;
-    scene.environmentIntensity = 1.0;
-    pmrem.dispose();
-  }
+  buildEnvironment(null);
   scene.traverse((o) => {
     if (o.isMesh && !(o.material.isShaderMaterial || o.material.isMeshBasicMaterial)) { o.castShadow = true; o.receiveShadow = true; }
   });
@@ -910,6 +942,46 @@ function buildRoom() {
   drawScreen();
 }
 
+// What the glossy desk, the dead screens and the mug reflect: the office behind, and through the glass the real city.
+let envTarget = null;
+function buildEnvironment(cityCube) {
+  if (!renderer.isWebGLRenderer) return;
+  const pmrem = new THREE.PMREMGenerator(renderer), env = new THREE.Scene();
+  env.add(new THREE.Mesh(new THREE.SphereGeometry(50, 48, 24), new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    uniforms: { city: { value: cityCube }, hasCity: { value: cityCube ? 1 : 0 } },
+    vertexShader: `varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
+    fragmentShader: `uniform samplerCube city; uniform float hasCity; varying vec3 vD;
+      void main(){
+        vec3 d = normalize(vD);
+        float y = d.y;
+        vec3 c = mix(vec3(.015,.02,.05), vec3(.004,.005,.01), smoothstep(-.1, .6, y));
+        c += vec3(.5,.55,.65) * step(.993, fract(d.x * 5.)) * step(.9, y);                      // ceiling strips
+        c += vec3(.25,.12,.03) * smoothstep(.06, 0., abs(y - .05)) * step(.6, d.z);             // the dim floor behind
+        if (hasCity > .5) {
+          // the glass: ahead (-z) and to the right (+x), floor to ceiling
+          float win = max(smoothstep(.05, -.25, d.z), smoothstep(-.05, .25, d.x)) * smoothstep(.8, .55, y) * smoothstep(-.9, -.6, y);
+          c = mix(c, textureCube(city, d).rgb * .85, win);
+        } else c += vec3(.16,.13,.1) * smoothstep(.14, 0., abs(y + .03)) * smoothstep(-.1, -.5, d.z);
+        gl_FragColor = vec4(c, 1.);
+      }`,
+  })));
+  const next = pmrem.fromScene(env, 0.02);
+  if (envTarget) envTarget.dispose();
+  envTarget = next;
+  scene.environment = next.texture;
+  scene.environmentIntensity = 1.0;
+  pmrem.dispose();
+}
+function reflectCity() {
+  const half = renderInfo.startsWith("HDR");
+  const rt = new THREE.WebGLCubeRenderTarget(256, { type: half ? THREE.HalfFloatType : THREE.UnsignedByteType, generateMipmaps: false });
+  const cam = new THREE.CubeCamera(5, 6000, rt);
+  cam.position.set(0, 1.4, -0.3);
+  cam.update(renderer, cityScene);
+  buildEnvironment(rt.texture);
+  rt.dispose();
+}
 /* ================= terminal keyboard: black, with red, yellow and green function keys ================= */
 function buildKeyboard() {
   const kb = new THREE.Group(); kb.position.set(0, DESK_Y + 0.003, 0.02); kb.rotation.x = 0.05; scene.add(kb);
@@ -973,7 +1045,7 @@ function buildTurret() {
     interactive(key, () => `Line ${i + 1}: ${CONTENT[p].title}`, () => setView("screen", p));
   });
   const hs = mesh(new RoundedBoxGeometry(0.05, 0.035, 0.22, 3, 0.012), body, -0.18, 0.02, 0, t);
-  interactive(hs, () => "Handset: pick up", () => { sfx.dial(); toast(null, "Dial tone. Nobody calls the desk at this hour."); });
+  interactive(hs, () => "Handset: pick up", () => { sfx.dial(); toast(null, "Dial tone. No lines open."); });
   interactive(base, () => "Dealer board: press a line key", () => setView("screen"));
 }
 function lightLine(i) {
@@ -1038,7 +1110,7 @@ function buildBadge(M) {
     g.fillStyle = "#1d3c8f"; g.fillRect(0, 0, w, 118);
     g.fillStyle = "#ffa028"; g.fillRect(0, 118, w, 10);
     g.fillStyle = "#ffffff"; g.textBaseline = "middle";
-    g.font = "700 44px IBM Plex Mono"; g.fillText("OMNITURM FRANKFURT", 40, 60);
+    g.font = "700 44px IBM Plex Mono"; g.fillText("FRANKFURT AM MAIN", 40, 60);
     g.font = "600 24px IBM Plex Mono"; g.textAlign = "right"; g.fillText("BETRIEBSAUSWEIS", w - 40, 60); g.textAlign = "left";
     g.textBaseline = "alphabetic";
     g.fillStyle = "#111111"; g.font = "700 56px IBM Plex Mono"; g.fillText("Christian Block", 40, 215);
@@ -1054,14 +1126,14 @@ function buildBadge(M) {
     g.font = "500 18px IBM Plex Mono"; g.fillStyle = "#6b7280"; g.fillText("Bei Fund bitte am Empfang im EG abgeben.", 325, 622);
   });
   tex.anisotropy = 16;
-  const card = new THREE.Group(); card.position.set(0.27, DESK_Y + 0.0039, 0.16); card.rotation.y = 0.12; card.scale.setScalar(1.4); scene.add(card);   // a touch larger than life, so it reads from the chair
+  const card = new THREE.Group(); card.position.set(0.27, DESK_Y + 0.0039, 0.115); card.rotation.y = 0.12; card.scale.setScalar(1.4); scene.add(card);   // a touch larger than life, so it reads from the chair
   mesh(new RoundedBoxGeometry(0.0856, 0.0016, 0.054, 2, 0.0007), new THREE.MeshPhysicalMaterial({ color: "#f4f5f7", roughness: 0.3, clearcoat: 1 }), 0, 0, 0, card);
   const face = mesh(new THREE.PlaneGeometry(0.0856, 0.054), new THREE.MeshPhysicalMaterial({ map: tex, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.06, ...ONTOP }), 0, 0.00082, 0, card);
   face.rotation.x = -Math.PI / 2;
   mesh(new THREE.BoxGeometry(0.012, 0.003, 0.012), M.metal, 0, 0.0015, -0.031, card);           // the clip
   // the lanyard, lying in a loose loop on the desk
   const pts = [[0.321, 0.094], [0.345, 0.05], [0.372, -0.005], [0.36, -0.07], [0.31, -0.1], [0.262, -0.07], [0.252, 0.0], [0.276, 0.06], [0.316, 0.09]].map(([x, z]) => new THREE.Vector3(x, 0, z));
-  const lan = mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 90, 0.0055, 6), new THREE.MeshPhysicalMaterial({ color: "#1d3c8f", roughness: 0.75, sheen: 1, sheenColor: new THREE.Color("#6f8fe0") }), 0, DESK_Y + 0.0044, 0.02);
+  const lan = mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 90, 0.0055, 6), new THREE.MeshPhysicalMaterial({ color: "#1d3c8f", roughness: 0.75, sheen: 1, sheenColor: new THREE.Color("#6f8fe0") }), -0.04, DESK_Y + 0.0044, -0.025);
   lan.scale.y = 0.22;
   badge.card = card;
   interactive(card, () => "Betriebsausweis: pick it up", () => setView("badge"));
@@ -1096,7 +1168,7 @@ function buildKeepsakes() {
     keep.frames[key] = { g, lean, center: () => lean.localToWorld(new THREE.Vector3(0, fh / 2, 0)), normal: () => new THREE.Vector3(0, 0, 1).transformDirection(lean.matrixWorld), info };
     interactive(g, () => (view === "photo" ? null : label), () => setView("photo", key));
   };
-  frame("dog", "img/dog.jpg", 0.12, 0.156, -0.9, -0.1, 0.62, "Photo: my dog", "My dog. Not actually that big.");
+  frame("dog", "img/dog.jpg", 0.12, 0.156, -0.9, -0.1, 0.62, "Photo: my dog", "My dog.");
   frame("father", "img/father.jpg", 0.14, 0.138, 0.74, -0.2, -0.45, "Photo: my father", "My father.");
   frame("wedding", "img/wedding.jpg", 0.11, 0.145, 1.0, -0.06, -0.75, "Photo: our wedding", "Our wedding day.");
 
@@ -1118,7 +1190,7 @@ function buildKeepsakes() {
     // the cable trails off towards the turret
     const cable = [[-0.085, 0.01, 0.04], [-0.12, 0.002, 0.1], [-0.2, 0.002, 0.13], [-0.3, 0.002, 0.08], [-0.36, 0.002, -0.02]].map((v) => new THREE.Vector3(...v));
     mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(cable), 40, 0.0018, 5), pad, 0, 0, 0, H);
-    interactive(H, () => "Headphones", () => toast(null, "The squawk box is too loud at 7 am. Headphones are for the open-plan quiet in the afternoon."));
+    interactive(H, () => "Headphones", () => toast(null, "Headset for the dealer board."));
   }
 
   /* --- reading glasses, folded and put down left of the keyboard: thin round metal frames --- */
@@ -1139,7 +1211,7 @@ function buildKeepsakes() {
       mesh(new THREE.SphereGeometry(0.0025, 8, 6), std({ color: "#e8e8e8", roughness: 0.2, transparent: true, opacity: 0.6 }), sx * 0.012, -0.014, 0.004, F);   // nose pads
     }
     const bridge = mesh(new THREE.TorusGeometry(0.007, 0.0011, 6, 16, Math.PI), wire, 0, 0.004, 0, F);
-    interactive(S, () => "Glasses", () => toast(null, "Reading glasses. Twelve hours of screens will do that."));
+    interactive(S, () => "Glasses", () => toast(null, "My glasses."));
   }
 
   /* --- my golf bag, in the corner between my desk and the glass; the clubs are left-handed --- */
@@ -1229,7 +1301,7 @@ function golfEgg() {
     sfx.click();
     tween(0.9, (k) => { d.position.y = y0 + 0.22 * Math.sin(k * Math.PI / 2); d.rotation.x = r0.x - 0.35 * k; }, () => {
       // pull the cover off: show the club face, toe pointing right: a left-handed driver
-      toast(null, "Left-handed clubs. Mine. On a floor of right-handed traders, I play golf the other way round.");
+      toast(null, "My clubs: left-handed, with Golf Club Hanau-Wilhelmsbad headcovers.");
       const b = K.ball, start = K.g.localToWorld(new THREE.Vector3(0, 0.3, 0.17)), floorP = start.clone().setY(0.0214), end = floorP.clone().add(new THREE.Vector3(-0.6, 0, 0.12));
       b.visible = true; b.position.copy(start);
       tween(0.35, (k) => b.position.lerpVectors(start, floorP, k * k), () => {
@@ -1419,7 +1491,7 @@ function drawTV(dt) {
   tv.tex.needsUpdate = true;
 }
 
-/* ================= Frankfurt, from the 45th floor of OMNITURM =================
+/* ================= Frankfurt, from the 45th floor =================
    Built from OpenStreetMap: every footprint, height and building part, every street, tram line, tree,
    street lamp and traffic signal within 2.7 km, baked by scripts/bake_city.py into data/city.json in this
    room's coordinates. The desk sits at the east end of the tower's north-east face, 166 m above the street,
@@ -1427,7 +1499,7 @@ function drawTV(dt) {
    is glass too and looks south-east at the Commerzbank Tower. −z runs out of the window, +x to the right. */
 const UP = new THREE.Vector3(0, 1, 0);
 const m4 = new THREE.Matrix4(), q4 = new THREE.Quaternion(), s3 = new THREE.Vector3(), p3 = new THREE.Vector3();
-const city = { ready: false, data: null, beacons: null, planes: null, sky: null, flash: 0, nextFlash: 25, cars: null, trams: null, signals: null, bld: [], roadSegs: null, marks: {} };
+const city = { glow: 0, ready: false, data: null, beacons: null, planes: null, sky: null, flash: 0, nextFlash: 25, cars: null, trams: null, signals: null, bld: [], roadSegs: null, marks: {} };
 const CITY_URLS = ["data/city.json", "https://raw.githubusercontent.com/topoftheblock/topoftheblock.github.io/main/data/city.json"];
 let cityPromise = null;
 function fetchCity() {
@@ -1756,8 +1828,10 @@ const glowPtsVS = `attribute vec3 color; attribute float size; varying vec3 vC; 
   void main(){
     vec4 w = modelMatrix * vec4(position, 1.);
     vec4 mv = viewMatrix * w;
-    vC = color; vF = hazeK(w.xyz);
-    gl_PointSize = clamp(size * scale / -mv.z, 2., 40.);
+    // a lamp far away is smaller than a pixel: draw it 3 px wide but spread the same light over them, so it never sparkles
+    float px = size * scale / -mv.z, shown = clamp(px, 3., 40.);
+    vC = color * min(1., (px * px) / (shown * shown) * 1.6 + .25); vF = hazeK(w.xyz);
+    gl_PointSize = shown;
     gl_Position = projectionMatrix * mv;
   }`;
 const glowPtsFS = `varying vec3 vC; varying float vF;
@@ -1814,7 +1888,7 @@ function buildFrankfurt(D) {
   /* --- the sky: one low deck of cloud, lit from below by the city --- */
   city.sky = new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false,
-    uniforms: { time: { value: 0 }, flash: CU.flash },
+    uniforms: { time: { value: 0 }, flash: { value: 0 } },
     vertexShader: `varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`,
     fragmentShader: `uniform float time; uniform float flash; varying vec3 vD;
       float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
@@ -2263,7 +2337,7 @@ function cityPick(ray) {
 }
 const STREETS = {
   "Roßmarkt": "Roßmarkt: the square between Goetheplatz and the Hauptwache, with Gutenberg's monument in the middle.",
-  "Große Gallusstraße": "Große Gallusstraße, straight below: from the Taunusanlage to the Roßmarkt, between OMNITURM and the Commerzbank Tower.",
+  "Große Gallusstraße": "Große Gallusstraße, straight below: from the Taunusanlage to the Roßmarkt, past the Commerzbank Tower.",
   "Neue Mainzer Straße": "Neue Mainzer Straße, the spine of the banking district, from the Main to the Alte Oper.",
   "Junghofstraße": "Junghofstraße, along the north side of FOUR.",
   "Kaiserstraße": "Kaiserstraße, from the Hauptbahnhof to the Roßmarkt.",
@@ -2279,7 +2353,7 @@ let sigT = 0;
 function updateCity(t, dt) {
   CU.time.value = REDUCED ? 0 : t;
   city.sky.uniforms.time.value = t;
-  const blink = t % 1.6 < 0.6 ? 1 : 0.06;
+  const blink = 0.7;   // steady obstacle lights: nothing on the skyline blinks
   CU_scale.value = renderer.getDrawingBufferSize(_v2).y / 2;
   {
     const c = city.beacons.geometry.attributes.color;
@@ -2288,8 +2362,8 @@ function updateCity(t, dt) {
   // sheet lightning somewhere behind the clouds, every half minute or so
   if (!REDUCED && t > city.nextFlash) { city.flash = 1; city.nextFlash = t + 20 + Math.random() * 40; setTimeout(() => sfx.thunder(), 1200 + Math.random() * 2500); }
   city.flash = Math.max(0, city.flash - dt * (city.flash > 0.5 ? 6 : 2.5));
-  const f = city.flash * (0.6 + 0.4 * Math.sin(t * 60));
-  CU.flash.value = f * 0.35; rainMat.uniforms.flash.value = f; hemi.intensity = 1.0 + f * 1.2;
+  city.glow += ((city.flash > 0 ? 0.35 : 0) - city.glow) * Math.min(1, dt * 1.5);   // swells and fades over a couple of seconds
+  city.sky.uniforms.flash.value = city.glow; CU.flash.value = 0; rainMat.uniforms.flash.value = 0;
   // planes
   {
     const pos = city.planes.geometry.attributes.position, col = city.planes.geometry.attributes.color;
@@ -2333,7 +2407,7 @@ function updateCity(t, dt) {
     if (car.s >= e.len) {
       const n = C.nextEdge(e);
       const far = n && Math.hypot(C.P2[n.b * 2], C.P2[n.b * 2 + 1]) > 900;
-      if (n && !far) { car.e = n; car.s -= e.len; } else { car.e = C.pickEdge(); car.s = Math.random() * car.e.len; car.v = car.e.vmax * 0.5; }
+      if (n && !far) { car.e = n; car.s -= e.len; } else { car.e = C.pickEdge(); car.s = Math.random() * car.e.len; car.v = car.e.vmax * 0.5; car.fade = 0; }   // a new car: its lights fade up
     }
     const E = car.e, ax = C.P2[E.a * 2], az = C.P2[E.a * 2 + 1];
     const x = ax + E.dx * car.s - E.dz * E.off, z = az + E.dz * car.s + E.dx * E.off, y = city.data.G;
@@ -2345,9 +2419,12 @@ function updateCity(t, dt) {
     const fx = E.dx * 2.3, fz = E.dz * 2.3, sx = -E.dz * 0.7, sz = E.dx * 0.7;
     lp.setXYZ(i * 4, x + fx + sx, y + 0.7, z + fz + sz); lp.setXYZ(i * 4 + 1, x + fx - sx, y + 0.7, z + fz - sz);
     lp.setXYZ(i * 4 + 2, x - fx + sx, y + 0.8, z - fz + sz); lp.setXYZ(i * 4 + 3, x - fx - sx, y + 0.8, z - fz - sz);
-    const brake = car.v < target - 0.1 || car.v < 1 ? 1.8 : 1;
-    lc.setXYZ(i * 4, 2.4, 2.3, 2.0); lc.setXYZ(i * 4 + 1, 2.4, 2.3, 2.0);
-    lc.setXYZ(i * 4 + 2, 1.6 * brake, 0.12, 0.08); lc.setXYZ(i * 4 + 3, 1.6 * brake, 0.12, 0.08);
+    car.br = (car.br || 0) + ((car.v < target - 0.5 || car.v < 1 ? 1 : 0) - (car.br || 0)) * Math.min(1, step * 3);
+    const brake = 1 + 0.8 * car.br;
+    car.fade = Math.min(1, (car.fade === undefined ? 1 : car.fade) + step * 0.6);
+    const fd = car.fade;
+    lc.setXYZ(i * 4, 2.4 * fd, 2.3 * fd, 2.0 * fd); lc.setXYZ(i * 4 + 1, 2.4 * fd, 2.3 * fd, 2.0 * fd);
+    lc.setXYZ(i * 4 + 2, 1.6 * brake * fd, 0.12 * fd, 0.08 * fd); lc.setXYZ(i * 4 + 3, 1.6 * brake * fd, 0.12 * fd, 0.08 * fd);
   });
   C.mesh.instanceMatrix.needsUpdate = true; C.beams.instanceMatrix.needsUpdate = true; lp.needsUpdate = true; lc.needsUpdate = true;
   // trams: three cars each, following the head along the track
@@ -2578,7 +2655,7 @@ function sip() {
 function waterPlant() {
   const b = plant.userData.base, s0 = plant.scale.x, s1 = Math.min(b * 1.35, s0 + b * 0.04);
   tween(0.9, (k, raw) => { plant.rotation.z = Math.sin(raw * Math.PI * 4) * 0.05 * (1 - raw); plant.scale.setScalar(s0 + (s1 - s0) * k); });
-  toast(null, s1 >= b * 1.35 ? "The plant is as big as it gets." : "The plant looks happier.");
+  toast(null, s1 >= b * 1.35 ? "The plant has enough water." : "Watered.");
 }
 
 /* ================= audio: a trading floor, built from oscillators and noise =================
@@ -2756,7 +2833,7 @@ function setView(v, page) {
     else moveCam(new THREE.Vector3(1.58, 1.62, -0.28), new THREE.Vector3(m[0], G, m[1]), 1.4);   // between two mullions, right of the screens
     toast(null, page === "corner"
       ? "The Commerzbank Tower, 80 m away. Drag to look round; point at a tower or a street to see its name."
-      : "OMNITURM, 45th floor. Straight down: the Roßmarkt and Gutenberg's monument, the Hauptwache beyond. Drag to look round; point at a tower or a street to see its name.");
+      : "45th floor. Straight down: the Roßmarkt and Gutenberg's monument, the Hauptwache beyond. Drag to look round; point at a tower or a street to see its name.");
   } else if (v === "badge") {
     view = "badge"; controls.enabled = false;
     const c = badge.card.position;
@@ -2946,15 +3023,14 @@ function loop() {
 // Ray-traced windows over a whole city are heavy on small GPUs: keep the frame rate, give up pixels first.
 const PR_MAX = Math.min(devicePixelRatio, LOW ? 1.25 : 1.75);
 let frameAvg = 1 / 60, prT = 0, prNow = PR_MAX;
+// Changing resolution makes every light jump, so it only ever steps down, after a sustained slow spell.
+let prSlow = 0, prStarted = 0;
 function adaptQuality(dt) {
-  frameAvg += (dt - frameAvg) * 0.05;
-  prT += dt;
-  if (prT < 2.5) return;
-  prT = 0;
-  let next = prNow;
-  if (frameAvg > 1 / 38 && prNow > 0.75) next = Math.max(0.75, prNow - 0.25);
-  else if (frameAvg < 1 / 57 && prNow < PR_MAX) next = Math.min(PR_MAX, prNow + 0.25);
-  if (next !== prNow) { prNow = next; renderer.setPixelRatio(prNow); resize(); }
+  prStarted += dt;
+  if (prStarted < 8 || view !== "room") return;            // ignore start-up and camera moves
+  frameAvg += (dt - frameAvg) * 0.02;
+  prSlow = frameAvg > 1 / 32 ? prSlow + dt : 0;
+  if (prSlow > 5 && prNow > 0.75) { prSlow = 0; prNow = Math.max(0.75, prNow - 0.35); renderer.setPixelRatio(prNow); resize(); }
 }
 
 /* ================= start ================= */

@@ -1,6 +1,6 @@
 # Night Desk · Christian Block
 
-An empty trading floor at night on the 45th floor of OMNITURM in Frankfurt, built with three.js in a single HTML file.
+An empty trading floor at night on the 45th floor of a Frankfurt tower, built with three.js in a single HTML file.
 The terminal on the desk holds the site: about, projects, publications and contact. Through the glass: the Roßmarkt
 and the Hauptwache below, FOUR ahead, the Commerzbank Tower round the corner, in the rain.
 

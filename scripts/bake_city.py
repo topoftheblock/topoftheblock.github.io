@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bakes the view from OMNITURM into data/city.json.
+"""Bakes the view from the 45th floor into data/city.json.
 
 Downloads OpenStreetMap data around the Frankfurt banking district (buildings with their heights and 3D parts,
 streets, tram lines, trees, street lamps, traffic signals), then writes it in the room's own coordinates:
@@ -53,7 +53,7 @@ def load(files):
 
 nodes, ways, rels = load(fetch_tiles())
 
-# --- local metres around OMNITURM ---------------------------------------------------------------
+# --- local metres around our tower ------------------------------------------------------------------
 lon0, lat0 = 8.673312223076923, 50.11156132307693
 kx = 111320*math.cos(math.radians(lat0)); ky = 110540
 def L(lon, lat): return ((lon-lon0)*kx, (lat-lat0)*ky)
@@ -81,10 +81,10 @@ def area(p): return abs(sum(p[i][0]*p[(i+1)%len(p)][1]-p[(i+1)%len(p)][0]*p[i][1
 
 FLOOR = 166.0            # our floor above the street
 G = -FLOOR
-OMNI = 598133203
+TOWER = 598133203   # the OpenStreetMap way of our own tower
 
-# --- the window: the east end of OMNITURM's north-east face --------------------------------
-on = ways[OMNI][0]
+# --- the window: the east end of the tower's north-east face --------------------------------
+on = ways[TOWER][0]
 pts = ring(on)
 A = (-10.3, 27.2); B = (7.8, -0.5)      # north and east corners of the north-east face (checked against the outline)
 A = min(pts, key=lambda p: math.hypot(p[0] - A[0], p[1] - A[1])); B = min(pts, key=lambda p: math.hypot(p[0] - B[0], p[1] - B[1]))
@@ -225,7 +225,7 @@ for rid, (mem, t) in rels.items():
         rs = assemble(mem)
         if rs: cands.append((rs, t, "r%d" % rid, "building:part" in t and "building" not in t))
 SKIP_B = {"underground", "construction", "no", "roof_underground"}
-omni_poly = ring(on)[:-1]
+tower_poly = ring(on)[:-1]
 
 # parts per outline: an outline that has parts inside it is drawn by its parts only
 grid = collections.defaultdict(list)
@@ -265,7 +265,7 @@ for rs, t, i, isp in cands:
     r = ring(rs[0])[:-1]
     if len(r) < 3 or (area(r) < 12 and (height(t) or 0) < 100): continue
     cx = sum(p[0] for p in r) / len(r); cy = sum(p[1] for p in r) / len(r)
-    if i == "w%d" % OMNI or pip(cx, cy, omni_poly): continue          # our own tower: we are inside it
+    if i == "w%d" % TOWER or pip(cx, cy, tower_poly): continue          # our own tower: we are inside it
     if not visible(r): continue
     if not isp and has_parts(r): continue
     hh = height(t); mh = minh(t)
