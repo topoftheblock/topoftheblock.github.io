@@ -760,7 +760,7 @@ function buildRoom() {
   const bezelGeo = new RoundedBoxGeometry(0.4, 0.27, 0.025, 2, 0.006), sGeo = new THREE.PlaneGeometry(0.37, 0.24);
   const seatGeo = new RoundedBoxGeometry(0.46, 0.07, 0.44, 2, 0.02), backGeo = new RoundedBoxGeometry(0.44, 0.5, 0.06, 2, 0.02), stemGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.42, 10), legGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.03, 5);
   const row = (x, face) => {
-    const short = x > 6.5;   // the last bench stops short of the glass: that corner holds the golf bag
+    const short = x < 0 && x > -3;   // the bench beside my desk stops short of the glass: that corner holds my golf bag
     const L = short ? 3.3 : 4.6, zc = short ? 2.35 : 1.7;
     box(0.8, 0.035, L, M.top, x, DESK_Y - 0.0175, zc);
     box(0.04, DESK_Y, L - 0.2, M.frame, x - face * 0.38, DESK_Y / 2, zc);
@@ -1039,10 +1039,53 @@ function buildKeepsakes() {
     interactive(g, () => (view === "photo" ? null : label), () => setView("photo", key));
   };
   frame("dog", "img/dog.jpg", 0.12, 0.156, -0.9, -0.1, 0.62, "Photo: my dog", "My dog. Not actually that big.");
-  frame("father", "img/father.jpg", 0.14, 0.138, 0.8, -0.18, -0.52, "Photo: my father", "My father.");
+  frame("father", "img/father.jpg", 0.14, 0.138, 0.74, -0.2, -0.45, "Photo: my father", "My father.");
+  frame("wedding", "img/wedding.jpg", 0.11, 0.145, 1.0, -0.06, -0.75, "Photo: our wedding", "Our wedding day.");
 
-  /* --- a golf bag in the glass corner of the floor; the clubs are left-handed --- */
-  const G = new THREE.Group(); G.position.set(8.25, 0, -0.3); G.rotation.set(0.06, -0.6, -0.1); scene.add(G);   // leaning into the corner
+  /* --- over-ear headphones, put down on the desk with the cushions facing up --- */
+  {
+    const H = new THREE.Group(); H.position.set(0.66, DESK_Y, 0.12); H.rotation.y = 0.5; scene.add(H);
+    const shell = new THREE.MeshPhysicalMaterial({ color: "#16181c", roughness: 0.35, metalness: 0.2, clearcoat: 0.6, clearcoatRoughness: 0.3 });
+    const pad = std({ color: "#0e0f12", roughness: 0.95 }), steel = std({ color: "#9aa3ad", roughness: 0.25, metalness: 1 });
+    for (const sx of [-1, 1]) {
+      const cup = new THREE.Group(); cup.position.set(sx * 0.085, 0.022, 0); H.add(cup);
+      const c = mesh(new THREE.CylinderGeometry(0.048, 0.05, 0.03, 32), shell, 0, 0, 0, cup); c.scale.z = 1.25;     // oval ear cups
+      const p = mesh(new THREE.TorusGeometry(0.036, 0.013, 12, 32), pad, 0, 0.018, 0, cup); p.rotation.x = Math.PI / 2; p.scale.y = 1.25;
+      mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.002, 24), pad, 0, 0.02, 0, cup).scale.z = 1.25;
+      mesh(new THREE.TorusGeometry(0.05, 0.0025, 6, 32), steel, 0, -0.005, 0, cup).rotation.x = Math.PI / 2;    // a thin metal ring
+    }
+    // the headband arcs between the cups, lying flat on the desk
+    const band = mesh(new THREE.TorusGeometry(0.095, 0.009, 10, 40, Math.PI), shell, 0, 0.012, -0.03, H); band.rotation.x = -Math.PI / 2; band.scale.set(1, 1.25, 0.5);
+    const cushion = mesh(new THREE.TorusGeometry(0.093, 0.007, 8, 40, Math.PI * 0.7), pad, 0, 0.012, -0.03, H); cushion.rotation.set(-Math.PI / 2, 0, Math.PI * 0.15); cushion.scale.set(1, 1.25, 0.5);
+    // the cable trails off towards the turret
+    const cable = [[-0.085, 0.01, 0.04], [-0.12, 0.002, 0.1], [-0.2, 0.002, 0.13], [-0.3, 0.002, 0.08], [-0.36, 0.002, -0.02]].map((v) => new THREE.Vector3(...v));
+    mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(cable), 40, 0.0018, 5), pad, 0, 0, 0, H);
+    interactive(H, () => "Headphones", () => toast(null, "The squawk box is too loud at 7 am. Headphones are for the open-plan quiet in the afternoon."));
+  }
+
+  /* --- reading glasses, folded and put down left of the keyboard: thin round metal frames --- */
+  {
+    const S = new THREE.Group(); S.position.set(-0.36, DESK_Y, 0.15); S.rotation.y = 0.35; scene.add(S);
+    const F = new THREE.Group(); F.position.y = 0.012; F.rotation.x = -1.15; S.add(F);   // resting on the folded temples, lenses up
+    const wire = std({ color: "#b8a27a", roughness: 0.3, metalness: 1 });   // gold-tone metal
+    const lens = new THREE.MeshPhysicalMaterial({ color: "#ffffff", roughness: 0.02, transparent: true, opacity: 0.12, clearcoat: 1, clearcoatRoughness: 0.02, depthWrite: false });
+    for (const sx of [-1, 1]) {
+      mesh(new THREE.TorusGeometry(0.023, 0.0012, 6, 40), wire, sx * 0.0275, 0, 0, F);
+      mesh(new THREE.CircleGeometry(0.0225, 32), lens, sx * 0.0275, 0, 0, F);
+      // hinges, and the temples folded in behind the lenses
+      mesh(new THREE.BoxGeometry(0.006, 0.004, 0.004), wire, sx * 0.052, 0.004, -0.002, F);
+      const t = mesh(new THREE.CylinderGeometry(0.0009, 0.0009, 0.1, 5), wire, sx * 0.004, 0.0035, -0.006 - (sx > 0 ? 0 : 0.003), F);
+      t.rotation.z = Math.PI / 2;
+      const tip = mesh(new THREE.CylinderGeometry(0.0016, 0.0012, 0.018, 6), std({ color: "#2a2420", roughness: 0.5 }), sx * -0.048, 0.0035, -0.006 - (sx > 0 ? 0 : 0.003), F);
+      tip.rotation.z = Math.PI / 2;
+      mesh(new THREE.SphereGeometry(0.0025, 8, 6), std({ color: "#e8e8e8", roughness: 0.2, transparent: true, opacity: 0.6 }), sx * 0.012, -0.014, 0.004, F);   // nose pads
+    }
+    const bridge = mesh(new THREE.TorusGeometry(0.007, 0.0011, 6, 16, Math.PI), wire, 0, 0.004, 0, F);
+    interactive(S, () => "Glasses", () => toast(null, "Reading glasses. Twelve hours of screens will do that."));
+  }
+
+  /* --- my golf bag, in the corner between my desk and the glass; the clubs are left-handed --- */
+  const G = new THREE.Group(); G.position.set(-1.45, 0, -0.38); G.rotation.set(-0.08, 0.55, 0.05); scene.add(G);   // leaning back against the glass
   const bagMat = new THREE.MeshPhysicalMaterial({ color: "#e9e6de", roughness: 0.5, clearcoat: 0.5, clearcoatRoughness: 0.35 });   // a white staff bag
   const trim = std({ color: "#1d3c8f", roughness: 0.5 }), black = std({ color: "#0d0e10", roughness: 0.6 });
   const chrome = std({ color: "#c9ced6", roughness: 0.18, metalness: 1 }), grip = std({ color: "#18191b", roughness: 0.9 });
@@ -1085,7 +1128,7 @@ function buildKeepsakes() {
   keep.golf.ball = mesh(new THREE.SphereGeometry(0.0214, 20, 16), std({ color: "#f6f6f2", roughness: 0.35 }), 0, -1, 0);
   keep.golf.ball.visible = false;
   keep.golf.g = G;
-  const corner = new THREE.PointLight("#b9c8ee", 4, 4, 2); corner.position.set(7.75, 2.0, 0.45); scene.add(corner);   // a ceiling light left on in the corner
+  const corner = new THREE.PointLight("#b9c8ee", 1.6, 2.5, 2); corner.position.set(-1.6, 2.2, 0.35); scene.add(corner);   // a ceiling light left on in the corner
   interactive(G, () => (keep.golf.busy ? null : "Golf bag"), golfEgg);
 }
 // Easter egg: walk over, the driver comes out of the bag the wrong way round for most people, and a ball gets away.
@@ -1099,8 +1142,8 @@ function golfEgg() {
     sfx.click();
     tween(0.9, (k) => { d.position.y = y0 + 0.22 * Math.sin(k * Math.PI / 2); d.rotation.x = r0.x - 0.35 * k; }, () => {
       // pull the cover off: show the club face, toe pointing right: a left-handed driver
-      toast(null, "Left-handed clubs. On a floor of right-handed traders, someone plays golf the other way round.");
-      const b = K.ball, start = K.g.localToWorld(new THREE.Vector3(0, 0.3, 0.17)), floorP = start.clone().setY(0.0214), end = floorP.clone().add(new THREE.Vector3(-0.55, 0, -0.16));
+      toast(null, "Left-handed clubs. Mine. On a floor of right-handed traders, I play golf the other way round.");
+      const b = K.ball, start = K.g.localToWorld(new THREE.Vector3(0, 0.3, 0.17)), floorP = start.clone().setY(0.0214), end = floorP.clone().add(new THREE.Vector3(-0.6, 0, 0.12));
       b.visible = true; b.position.copy(start);
       tween(0.35, (k) => b.position.lerpVectors(start, floorP, k * k), () => {
         sfx.click();
@@ -2643,7 +2686,7 @@ function setView(v, page) {
   } else if (v === "golf") {
     view = "golf"; controls.enabled = false;
     // over the last bench, looking down into the corner
-    moveCam(new THREE.Vector3(6.7, 1.65, 1.05), keep.golf.g.position.clone().add(new THREE.Vector3(-0.35, 0.68, 0.1)), 1.4);
+    moveCam(new THREE.Vector3(-0.35, 1.55, 0.95), keep.golf.g.position.clone().add(new THREE.Vector3(-0.2, 0.68, 0.1)), 1.4);
   } else if (v === "tv") {
     view = "tv"; controls.enabled = false;
     const n = new THREE.Vector3(Math.sin(tv.g.rotation.y), 0, Math.cos(tv.g.rotation.y));
