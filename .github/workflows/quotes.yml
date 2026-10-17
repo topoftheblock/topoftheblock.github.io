@@ -1,0 +1,30 @@
+name: Update market data
+
+on:
+  schedule:
+    - cron: "*/15 6-16 * * 1-5"   # every 15 minutes, 06:00–16:59 UTC, Monday to Friday (Xetra hours)
+    - cron: "30 18 * * 1-5"       # once after the close
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: market-data
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python scripts/fetch_quotes.py data/quotes.json
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git add data/quotes.json
+          git diff --cached --quiet || (git commit -m "Update market data" && git push)
