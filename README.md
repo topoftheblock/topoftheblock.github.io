@@ -9,6 +9,7 @@ Live: https://topoftheblock.github.io
 - `index.html` – the whole site. Page text lives in the `<section data-page="…">` blocks near the bottom.
 - `data/city.json` – the city outside: every building, street, tram line, tree, street lamp and traffic signal within 2.7 km, from OpenStreetMap.
 - `scripts/bake_city.py` – rebuilds that file from OpenStreetMap (standard library only; caches downloads in `.osm-cache/`).
+- `img/` – the two framed photos on the desk.
 - `data/quotes.json` – DAX quotes, intraday series and headlines shown on the desk screens.
 - `scripts/fetch_quotes.py` – refreshes that file (Yahoo Finance quotes, delayed; Google News headlines).
 - `.github/workflows/quotes.yml` – runs the script every 15 minutes in Xetra trading hours.

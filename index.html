@@ -760,10 +760,12 @@ function buildRoom() {
   const bezelGeo = new RoundedBoxGeometry(0.4, 0.27, 0.025, 2, 0.006), sGeo = new THREE.PlaneGeometry(0.37, 0.24);
   const seatGeo = new RoundedBoxGeometry(0.46, 0.07, 0.44, 2, 0.02), backGeo = new RoundedBoxGeometry(0.44, 0.5, 0.06, 2, 0.02), stemGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.42, 10), legGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.03, 5);
   const row = (x, face) => {
-    box(0.8, 0.035, 4.6, M.top, x, DESK_Y - 0.0175, 1.7);
-    box(0.04, DESK_Y, 4.4, M.frame, x - face * 0.38, DESK_Y / 2, 1.7);
-    box(0.02, 0.32, 4.6, M.frame, x - face * 0.4, DESK_Y + 0.16, 1.7); // the screen divider down the bench
-    for (const z of [-0.05, 1.15, 2.35, 3.55]) {
+    const short = x > 6.5;   // the last bench stops short of the glass: that corner holds the golf bag
+    const L = short ? 3.3 : 4.6, zc = short ? 2.35 : 1.7;
+    box(0.8, 0.035, L, M.top, x, DESK_Y - 0.0175, zc);
+    box(0.04, DESK_Y, L - 0.2, M.frame, x - face * 0.38, DESK_Y / 2, zc);
+    box(0.02, 0.32, L, M.frame, x - face * 0.4, DESK_Y + 0.16, zc); // the screen divider down the bench
+    for (const z of short ? [1.15, 2.35, 3.55] : [-0.05, 1.15, 2.35, 3.55]) {
       if (Math.abs(x) < 2 && z < 0.6) continue; // leave room at the ends of my own desk
       const bare = rnd() < 0.25; // some desks were cleared out completely
       if (!bare) for (const dz of [-0.21, 0.21]) {
@@ -809,6 +811,7 @@ function buildRoom() {
 
   buildBadge(M);
   buildDeskClock();
+  buildKeepsakes();
 
   /* --- light --- */
   hemi = new THREE.HemisphereLight("#6f88c8", "#1a2232", 1.0);
@@ -979,14 +982,11 @@ function buildBadge(M) {
     g.fillStyle = "#ffffff"; g.textBaseline = "middle";
     g.font = "700 44px IBM Plex Mono"; g.fillText("OMNITURM FRANKFURT", 40, 60);
     g.font = "600 24px IBM Plex Mono"; g.textAlign = "right"; g.fillText("BETRIEBSAUSWEIS", w - 40, 60); g.textAlign = "left";
-    g.fillStyle = "#c9ced8"; g.fillRect(40, 160, 250, 320);                       // the photo field, with a plain silhouette
-    g.fillStyle = "#8e96a6"; g.beginPath(); g.arc(165, 285, 68, 0, 7); g.fill();
-    g.beginPath(); g.ellipse(165, 480, 112, 100, 0, Math.PI, 0); g.fill();
     g.textBaseline = "alphabetic";
-    g.fillStyle = "#111111"; g.font = "700 50px IBM Plex Mono"; g.fillText("Christian Block", 325, 215);
+    g.fillStyle = "#111111"; g.font = "700 56px IBM Plex Mono"; g.fillText("Christian Block", 40, 215);
     [["Abteilung", "Software Engineering"], ["Etage", "45. OG"], ["Personal-Nr.", "004521"], ["Gültig bis", "12/2027"]].forEach(([k, v], i) => {
-      g.font = "500 22px IBM Plex Mono"; g.fillStyle = "#6b7280"; g.fillText(k, 325, 285 + i * 50);
-      g.font = "600 28px IBM Plex Mono"; g.fillStyle = "#111111"; g.fillText(v, 560, 285 + i * 50);
+      g.font = "500 24px IBM Plex Mono"; g.fillStyle = "#6b7280"; g.fillText(k, 40, 290 + i * 52);
+      g.font = "600 30px IBM Plex Mono"; g.fillStyle = "#111111"; g.fillText(v, 300, 290 + i * 52);
     });
     const chip = g.createLinearGradient(40, 515, 140, 595); chip.addColorStop(0, "#e8cf7a"); chip.addColorStop(1, "#b8963c");
     g.fillStyle = chip; g.fillRect(40, 512, 100, 78);
@@ -1009,6 +1009,109 @@ function buildBadge(M) {
   interactive(card, () => "Betriebsausweis: pick it up", () => setView("badge"));
 }
 
+/* ================= things people keep at their desk: two photos, and golf clubs in the corner ================= */
+const keep = { frames: {}, golf: {} };
+function buildKeepsakes() {
+  const loader = new THREE.TextureLoader();
+  const frameMat = new THREE.MeshPhysicalMaterial({ color: "#1b1712", roughness: 0.45, clearcoat: 0.6, clearcoatRoughness: 0.3 });   // dark walnut
+  const matBoard = std({ color: "#ece8df", roughness: 0.95 });
+  const glassMat = new THREE.MeshPhysicalMaterial({ color: "#ffffff", roughness: 0.04, transmission: 0, transparent: true, opacity: 0.08, clearcoat: 1, clearcoatRoughness: 0.02, depthWrite: false, ...ONTOP });
+  // a standing frame: wood moulding, white mat, the photo, glass, and a strut at the back
+  const frame = (key, src, w, h, x, z, rotY, label, info) => {
+    const g = new THREE.Group(); g.position.set(x, DESK_Y, z); g.rotation.y = rotY; scene.add(g);
+    const lean = new THREE.Group(); lean.rotation.x = -0.16; g.add(lean);
+    const fw = w + 0.05, fh = h + 0.05, b = 0.014, d = 0.016;
+    box(fw, b, d, frameMat, 0, b / 2, 0, lean); box(fw, b, d, frameMat, 0, fh - b / 2, 0, lean);
+    box(b, fh, d, frameMat, -fw / 2 + b / 2, fh / 2, 0, lean); box(b, fh, d, frameMat, fw / 2 - b / 2, fh / 2, 0, lean);
+    box(fw - 2 * b, fh - 2 * b, 0.004, matBoard, 0, fh / 2, -0.002, lean);
+    const photoMat = std({ color: "#ffffff", roughness: 0.6, ...ONTOP });
+    const photo = mesh(new THREE.PlaneGeometry(w, h), photoMat, 0, fh / 2, 0.0005, lean);
+    loader.load(src, (t) => {
+      t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+      // crop to the opening, keeping the picture's proportions
+      const ia = t.image.width / t.image.height, fa = w / h;
+      if (ia > fa) { t.repeat.set(fa / ia, 1); t.offset.set((1 - fa / ia) / 2, 0); } else { t.repeat.set(1, ia / fa); t.offset.set(0, (1 - ia / fa) / 2); }
+      photoMat.map = t; photoMat.needsUpdate = true;
+    });
+    mesh(new THREE.PlaneGeometry(fw - 2 * b, fh - 2 * b), glassMat, 0, fh / 2, 0.006, lean);
+    const strut = box(0.02, fh * 0.75, 0.006, frameMat, 0, fh * 0.36, -0.06, g); strut.rotation.x = 0.42;
+    keep.frames[key] = { g, lean, center: () => lean.localToWorld(new THREE.Vector3(0, fh / 2, 0)), normal: () => new THREE.Vector3(0, 0, 1).transformDirection(lean.matrixWorld), info };
+    interactive(g, () => (view === "photo" ? null : label), () => setView("photo", key));
+  };
+  frame("dog", "img/dog.jpg", 0.12, 0.156, -0.9, -0.1, 0.62, "Photo: my dog", "My dog. Not actually that big.");
+  frame("father", "img/father.jpg", 0.14, 0.138, 0.8, -0.18, -0.52, "Photo: my father", "My father.");
+
+  /* --- a golf bag in the glass corner of the floor; the clubs are left-handed --- */
+  const G = new THREE.Group(); G.position.set(8.25, 0, -0.3); G.rotation.set(0.06, -0.6, -0.1); scene.add(G);   // leaning into the corner
+  const bagMat = new THREE.MeshPhysicalMaterial({ color: "#e9e6de", roughness: 0.5, clearcoat: 0.5, clearcoatRoughness: 0.35 });   // a white staff bag
+  const trim = std({ color: "#1d3c8f", roughness: 0.5 }), black = std({ color: "#0d0e10", roughness: 0.6 });
+  const chrome = std({ color: "#c9ced6", roughness: 0.18, metalness: 1 }), grip = std({ color: "#18191b", roughness: 0.9 });
+  mesh(new THREE.CylinderGeometry(0.13, 0.115, 0.86, 28, 1, true), bagMat, 0, 0.47, 0, G).material.side = THREE.DoubleSide;
+  mesh(new THREE.CylinderGeometry(0.118, 0.118, 0.06, 28), black, 0, 0.03, 0, G);                         // the base
+  mesh(new THREE.TorusGeometry(0.13, 0.016, 10, 32), black, 0, 0.9, 0, G).rotation.x = Math.PI / 2;       // the collar
+  mesh(new THREE.CylinderGeometry(0.1315, 0.1315, 0.035, 28, 1, true), trim, 0, 0.8, 0, G);               // a white band
+  mesh(new RoundedBoxGeometry(0.12, 0.34, 0.06, 3, 0.02), new THREE.MeshPhysicalMaterial({ color: "#1d3c8f", roughness: 0.5, clearcoat: 0.5 }), 0, 0.42, 0.135, G);   // the ball pocket
+  mesh(new THREE.BoxGeometry(0.1, 0.012, 0.004), chrome, 0, 0.56, 0.167, G);                                 // its zip
+  const strap = mesh(new THREE.TorusGeometry(0.2, 0.018, 8, 24, Math.PI), black, 0, 0.55, -0.13, G); strap.rotation.set(0, Math.PI / 2, Math.PI / 2);
+  mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.1, 12), black, 0, 0.98, 0, G).position.set(0, 0.88, 0);
+  // clubs: shafts up out of the bag, grips down inside it. Left-handed: seen face-on, the toe points to the right.
+  const head = (kind) => {
+    const h = new THREE.Group();
+    if (kind === "iron") {
+      const s = new THREE.Shape(); s.moveTo(0, 0); s.lineTo(0.075, -0.005); s.quadraticCurveTo(0.085, 0.02, 0.075, 0.05); s.lineTo(0.01, 0.03); s.closePath();
+      const m = mesh(new THREE.ExtrudeGeometry(s, { depth: 0.012, bevelEnabled: true, bevelSize: 0.002, bevelThickness: 0.002, bevelSegments: 2 }), chrome, 0, 0, -0.006, h);
+      m.scale.x = 1;   // toe towards +x: a left-handed iron
+    } else if (kind === "putter") {
+      mesh(new RoundedBoxGeometry(0.1, 0.025, 0.03, 2, 0.006), chrome, 0.045, 0.012, 0, h);
+    } else {
+      // woods wear knitted head covers with a pom-pom
+      const cv = std({ color: kind === "driver" ? "#c8102e" : "#e9e9e6", roughness: 1 });
+      const c = mesh(new THREE.SphereGeometry(0.055, 18, 14), cv, 0.03, 0.03, 0, h); c.scale.set(1.15, 1.25, 0.95);
+      mesh(new THREE.CylinderGeometry(0.03, 0.045, 0.12, 14), cv, 0.005, -0.06, 0, h);
+      mesh(new THREE.SphereGeometry(0.022, 10, 8), std({ color: "#1d3c8f", roughness: 1 }), 0.035, 0.1, 0, h);
+    }
+    return h;
+  };
+  const clubs = [["driver", -0.05, 0.03, 0.42], ["wood", 0.03, 0.05, 0.36], ["wood", -0.06, -0.04, 0.34], ["putter", 0.06, -0.05, 0.3],
+    ["iron", 0, -0.07, 0.27], ["iron", 0.07, 0.01, 0.26], ["iron", -0.03, 0.07, 0.25], ["iron", 0.02, -0.01, 0.24], ["iron", -0.08, 0.0, 0.23]];
+  clubs.forEach(([kind, x, z, out], i) => {
+    const c = new THREE.Group(); c.position.set(x, 0.1, z); c.rotation.set((rnd() - 0.5) * 0.12, rnd() * 6.28, (rnd() - 0.5) * 0.12); G.add(c);
+    mesh(new THREE.CylinderGeometry(0.0065, 0.0045, 0.8 + out, 8), kind === "iron" || kind === "putter" ? chrome : black, 0, (0.8 + out) / 2, 0, c);
+    mesh(new THREE.CylinderGeometry(0.011, 0.009, 0.26, 10), grip, 0, 0.13, 0, c);
+    const hd = head(kind); hd.position.y = 0.8 + out; hd.rotation.z = Math.PI; c.add(hd);   // heads up, as clubs stand in a bag
+    if (kind === "driver") keep.golf.driver = c;
+  });
+  // the ball for the easter egg, hidden in the pocket until then
+  keep.golf.ball = mesh(new THREE.SphereGeometry(0.0214, 20, 16), std({ color: "#f6f6f2", roughness: 0.35 }), 0, -1, 0);
+  keep.golf.ball.visible = false;
+  keep.golf.g = G;
+  const corner = new THREE.PointLight("#b9c8ee", 4, 4, 2); corner.position.set(7.75, 2.0, 0.45); scene.add(corner);   // a ceiling light left on in the corner
+  interactive(G, () => (keep.golf.busy ? null : "Golf bag"), golfEgg);
+}
+// Easter egg: walk over, the driver comes out of the bag the wrong way round for most people, and a ball gets away.
+function golfEgg() {
+  const K = keep.golf;
+  if (K.busy) return;
+  K.busy = true;
+  setView("golf");
+  const d = K.driver, y0 = d.position.y, r0 = d.rotation.clone();
+  setTimeout(() => {
+    sfx.click();
+    tween(0.9, (k) => { d.position.y = y0 + 0.22 * Math.sin(k * Math.PI / 2); d.rotation.x = r0.x - 0.35 * k; }, () => {
+      // pull the cover off: show the club face, toe pointing right: a left-handed driver
+      toast(null, "Left-handed clubs. On a floor of right-handed traders, someone plays golf the other way round.");
+      const b = K.ball, start = K.g.localToWorld(new THREE.Vector3(0, 0.3, 0.17)), floorP = start.clone().setY(0.0214), end = floorP.clone().add(new THREE.Vector3(-0.55, 0, -0.16));
+      b.visible = true; b.position.copy(start);
+      tween(0.35, (k) => b.position.lerpVectors(start, floorP, k * k), () => {
+        sfx.click();
+        tween(2.6, (k) => { const e = 1 - Math.pow(1 - k, 3); b.position.lerpVectors(floorP, end, e); b.rotation.z -= 0.25 * (1 - k); }, () => {
+          tween(0.9, (k) => { d.position.y = y0 + 0.22 * (1 - k); d.rotation.x = r0.x - 0.35 * (1 - k); }, () => { K.busy = false; });
+        });
+      });
+    });
+  }, 1300);
+}
+
 /* ================= desk world clock: Frankfurt, London, New York, Tokyo ================= */
 const ZONES = [["FRANKFURT", "Europe/Berlin", 540, 1050], ["LONDON", "Europe/London", 480, 990], ["NEW YORK", "America/New_York", 570, 960], ["TOKYO", "Asia/Tokyo", 540, 900]]
   .map(([n, tz, open, close]) => ({ n, tz, open, close,
@@ -1022,8 +1125,8 @@ function buildDeskClock() {
   mesh(new THREE.PlaneGeometry(0.25, 0.0625), screenMatFor(deskClock.tex, 1.25), 0, 0, 0.0228, tilt);
   mesh(new THREE.BoxGeometry(0.2, 0.012, 0.05), new THREE.MeshPhysicalMaterial({ color: "#16181d", roughness: 0.4 }), 0, 0.006, 0.005, g);
   drawDeskClock();
-  interactive(g, () => "World clock: " + ZONES.map((z) => z.n.split(" ")[0] + " " + z.f.format(new Date()).slice(0, 5)).join(" · "),
-    () => toast(null, ZONES.map((z) => `${z.n} ${z.f.format(new Date()).slice(0, 5)} ${marketOpen(z) ? "open" : "closed"}`).join("  ·  ")));
+  deskClock.g = g; deskClock.face = tilt;
+  interactive(g, () => (view === "clock" ? null : "World clock: take a closer look"), () => setView("clock"));
 }
 function marketOpen(z) {
   const now = new Date(), [hh, mm] = z.f.format(now).split(":").map(Number), m = hh * 60 + mm, day = z.d.format(now);
@@ -2498,8 +2601,16 @@ function moveCam(pos, target, dur, done) {
   if (camTween) { const i = tweens.indexOf(camTween); if (i >= 0) tweens.splice(i, 1); }
   camTween = tween(dur, (k) => { camera.position.lerpVectors(p0, pos, k); controls.target.lerpVectors(t0, target, k); camera.lookAt(controls.target); }, () => { camTween = null; done && done(); });
 }
+let expTween = null;
+function setExposure(e) {
+  const from = renderer.toneMappingExposure;
+  if (Math.abs(from - e) < 0.01) return;
+  if (expTween) { const i = tweens.indexOf(expTween); if (i >= 0) tweens.splice(i, 1); }
+  expTween = tween(1.0, (k) => (renderer.toneMappingExposure = from + (e - from) * k), () => (expTween = null));
+}
 function setView(v, page) {
   if (!roomReady) return;
+  setExposure(v === "badge" ? 0.16 : v === "photo" && page === "father" ? 0.6 : v === "clock" ? 0.85 : 1.1);
   if (v !== "window" && lensFov) zoomFov(0);
   if (v === "screen") {
     if (view !== "screen") moveCam(screenCamPos(), SCREEN_CENTER, 1.1);
@@ -2519,6 +2630,20 @@ function setView(v, page) {
     const c = badge.card.position;
     moveCam(c.clone().add(new THREE.Vector3(0.02, 0.17, 0.07)), c.clone(), 1.1);
     toast(null, "Betriebsausweis · Christian Block · Software Engineering · 45. OG · valid until 12/2027");
+  } else if (v === "photo") {
+    view = "photo"; controls.enabled = false;
+    const f = keep.frames[page], c = f.center();
+    moveCam(c.clone().addScaledVector(f.normal(), 0.36).add(new THREE.Vector3(0, 0.02, 0)), c, 1.1);
+    toast(null, f.info);
+  } else if (v === "clock") {
+    view = "clock"; controls.enabled = false;
+    const c = deskClock.face.localToWorld(new THREE.Vector3(0, 0, 0.02)), n = new THREE.Vector3(0, 0, 1).transformDirection(deskClock.face.matrixWorld);
+    moveCam(c.clone().addScaledVector(n, 0.42 / Math.min(1, camera.aspect)), c, 1.1);
+    toast(null, ZONES.map((z) => `${z.n} ${z.f.format(new Date()).slice(0, 5)} ${marketOpen(z) ? "open" : "closed"}`).join("  ·  "));
+  } else if (v === "golf") {
+    view = "golf"; controls.enabled = false;
+    // over the last bench, looking down into the corner
+    moveCam(new THREE.Vector3(6.7, 1.65, 1.05), keep.golf.g.position.clone().add(new THREE.Vector3(-0.35, 0.68, 0.1)), 1.4);
   } else if (v === "tv") {
     view = "tv"; controls.enabled = false;
     const n = new THREE.Vector3(Math.sin(tv.g.rotation.y), 0, Math.cos(tv.g.rotation.y));
