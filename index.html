@@ -107,13 +107,13 @@ button { font: inherit; }
   <div class="lb t" aria-hidden="true"></div><div class="lb b" aria-hidden="true"></div>
 
   <div class="hud" id="hud-top">
-    <div class="brand"><b>ND</b><span>CHRISTIAN BLOCK &lt;GO&gt;</span></div>
+    <div class="brand"><b>CHRISTIAN BLOCK</b></div>
     <div class="row" role="navigation" aria-label="Pages">
       <button class="key yel" data-go="about">1 About</button>
       <button class="key yel" data-go="projects">2 Projects</button>
       <button class="key yel" data-go="publications">3 Publications</button>
       <button class="key yel" data-go="contact">4 Contact</button>
-      <button class="key gry" id="sound" aria-pressed="false">Sound</button>
+      <button class="key gry" id="sound" aria-pressed="false">Sound: off</button>
     </div>
   </div>
   <button class="hud key red" id="back" hidden>Cancel · back to desk</button>
@@ -124,8 +124,8 @@ button { font: inherit; }
 
   <div id="boot">
     <div class="signon">
-      <p class="mark"><b>ND</b><span>TERMINAL</span></p>
-      <p class="sub">Christian Block · Frankfurt am Main</p>
+      <p class="mark"><b>CHRISTIAN BLOCK</b></p>
+      <p class="sub">Frankfurt am Main · OMNITURM, 45. OG</p>
       <div class="bar" aria-hidden="true"><i id="bar"></i></div>
       <div id="log" aria-live="polite"></div>
       <button id="enter" hidden disabled>Enter</button>
@@ -280,7 +280,7 @@ function ensureRoom() {
 }
 
 async function bootRoom() {
-  log("ND TERMINAL v1.0   SIGN ON  CHRISTIAN.BLOCK");
+  log("CHRISTIAN BLOCK · FRANKFURT");
   progress(0.05);
   fetchCity().catch(() => {});
   if (document.fonts) await Promise.race([
@@ -552,9 +552,9 @@ function headlines() {
   if (mkt.news.length) return mkt.news;
   const s = [...mkt.syms].sort((a, b) => chgOf(b) - chgOf(a)), t = mkt.updated;
   return [
-    { title: `DAX ${idxChg() >= 0 ? "higher" : "lower"} at ${de(mkt.idx, 1)} points, ${sign(idxChg())} %`, source: "ND", time: t },
-    { title: `${s[0].name} leads the gainers, ${sign(chgOf(s[0]))} %`, source: "ND", time: t },
-    { title: `${s[s.length - 1].name} at the bottom, ${sign(chgOf(s[s.length - 1]))} %`, source: "ND", time: t },
+    { title: `DAX ${idxChg() >= 0 ? "higher" : "lower"} at ${de(mkt.idx, 1)} points, ${sign(idxChg())} %`, source: "Market recap", time: t },
+    { title: `${s[0].name} leads the gainers, ${sign(chgOf(s[0]))} %`, source: "Market recap", time: t },
+    { title: `${s[s.length - 1].name} at the bottom, ${sign(chgOf(s[s.length - 1]))} %`, source: "Market recap", time: t },
   ];
 }
 
@@ -977,7 +977,7 @@ function buildBadge(M) {
     g.fillStyle = "#1d3c8f"; g.fillRect(0, 0, w, 118);
     g.fillStyle = "#ffa028"; g.fillRect(0, 118, w, 10);
     g.fillStyle = "#ffffff"; g.textBaseline = "middle";
-    g.font = "700 44px IBM Plex Mono"; g.fillText("ND CAPITAL MARKETS", 40, 60);
+    g.font = "700 44px IBM Plex Mono"; g.fillText("OMNITURM FRANKFURT", 40, 60);
     g.font = "600 24px IBM Plex Mono"; g.textAlign = "right"; g.fillText("BETRIEBSAUSWEIS", w - 40, 60); g.textAlign = "left";
     g.fillStyle = "#c9ced8"; g.fillRect(40, 160, 250, 320);                       // the photo field, with a plain silhouette
     g.fillStyle = "#8e96a6"; g.beginPath(); g.arc(165, 285, 68, 0, 7); g.fill();
@@ -2460,14 +2460,19 @@ const sfx = {
 function setSound(on) {
   soundOn = on;
   $("#sound").setAttribute("aria-pressed", String(on));
-  $("#sound").textContent = on ? "Sound on" : "Sound";
+  $("#sound").textContent = on ? "Sound: on" : "Sound: off";
+  clearInterval(amb.timer); amb.timer = null;
   if (on) {
     const a = ctx();
+    amb.out.gain.cancelScheduledValues(a.currentTime);
+    amb.out.gain.setValueAtTime(0, a.currentTime);
     amb.out.gain.setTargetAtTime(0.9, a.currentTime, 0.6);
-    clearInterval(amb.timer); amb.timer = setInterval(scheduleFloor, 60);
+    amb.timer = setInterval(scheduleFloor, 60);
   } else if (actx) {
-    amb.out.gain.setTargetAtTime(0, actx.currentTime, 0.2);
-    clearInterval(amb.timer); amb.timer = null;
+    // silence straight away and stop the audio clock, so nothing already scheduled can still play
+    amb.out.gain.cancelScheduledValues(actx.currentTime);
+    amb.out.gain.setValueAtTime(0, actx.currentTime);
+    actx.suspend();
   }
   if (squawk.led) squawk.led.material.color.setRGB(on ? 0.4 : 0.05, on ? 2.6 : 0.2, on ? 0.6 : 0.08);
   if (roomReady) { term.msg = on ? "Floor sound on." : "Floor sound off."; drawScreen(); }
@@ -2697,7 +2702,7 @@ function adaptQuality(dt) {
 
 /* ================= start ================= */
 if (hasGL2) ensureRoom();
-else { log("ND TERMINAL v1.0   LOGIN topoftheblock"); startTerminal2D("Video ............ no WebGL 2 in this browser"); }
+else { log("CHRISTIAN BLOCK · FRANKFURT"); startTerminal2D("Video ............ no WebGL 2 in this browser"); }
 </script>
 
 </body>
