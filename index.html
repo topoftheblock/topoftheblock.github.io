@@ -1427,7 +1427,6 @@ const bldFS = `uniform float time;
     float on = step(onR, litFrac);
     vec3 lc = kind == 2. ? WARM * (.8 + .4 * hash13(id + 2.)) : kind == 4. ? mix(WARM, LED, step(.5, hash13(id + 3.))) * 1.4 : (hash13(id + 5.) < .7 ? FLUO : LED);
     if (kind == 3.) lc = LED * .95;
-    if (on > 0. && hash13(id + 7.) > .975) on *= step(.3, hash11(floor(time * 11.) + sd * 77. + rx)) * .9 + .1;   // a dying tube
     // glass and frame
     vec3 R = reflect(V, n);
     float fr = .04 + .96 * pow(1. - clamp(abs(dot(V, n)), 0., 1.), 5.);

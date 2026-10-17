@@ -316,6 +316,39 @@ for bd in buildings:
             if nm in TRADING: bd["tr"] = 1
             break
 
+# --- duplicates: OSM often maps one tower as two nearly identical parts. Their walls would sit in the same
+# place and flicker against each other on screen, so keep one: stacked parts are trimmed, doubles dropped.
+def _bb(b): xs = b["p"][0::2]; zs = b["p"][1::2]; return min(xs), min(zs), max(xs), max(zs)
+_grid = collections.defaultdict(list)
+for _i, _b in enumerate(buildings):
+    _a = _bb(_b); _grid[(_a[0] // 500, _a[1] // 500)].append(_i)
+_drop = set()
+for _i, _b in enumerate(buildings):
+    if _i in _drop: continue
+    _a = _bb(_b)
+    for _gx in (-1, 0, 1):
+        for _gz in (-1, 0, 1):
+            for _j in _grid[(_a[0] // 500 + _gx, _a[1] // 500 + _gz)]:
+                if _j <= _i or _j in _drop or _i in _drop: continue
+                _o = buildings[_j]; _c = _bb(_o)
+                ix = max(0, min(_a[2], _c[2]) - max(_a[0], _c[0])) * max(0, min(_a[3], _c[3]) - max(_a[1], _c[1]))
+                un = (_a[2] - _a[0]) * (_a[3] - _a[1]) + (_c[2] - _c[0]) * (_c[3] - _c[1]) - ix
+                if not un or ix / un < 0.75: continue
+                top_i, top_j = _b["y1"] + _b.get("rh", 0), _o["y1"] + _o.get("rh", 0)
+                if min(top_i, top_j) <= max(_b["y0"], _o["y0"]): continue
+                lo, hi = (_b, _o) if _b["y0"] < _o["y0"] else (_o, _b)
+                if hi["y0"] > lo["y0"] + 2 and top_i != top_j and (hi["y1"] + hi.get("rh", 0)) > (lo["y1"] + lo.get("rh", 0)):
+                    lo["y1"] = hi["y0"]; lo.pop("rh", None)          # stacked: the lower one stops where the upper begins
+                else:
+                    keep, gone = (_i, _j) if top_i >= top_j else (_j, _i)
+                    k, g = buildings[keep], buildings[gone]
+                    k["y0"] = min(k["y0"], g["y0"])
+                    if "n" in g and "n" not in k: k["n"] = g["n"]
+                    if g.get("tr"): k["tr"] = 1
+                    _drop.add(gone)
+print("duplicates merged", len(_drop))
+buildings = [b for i, b in enumerate(buildings) if i not in _drop]
+
 # --- roads and the drive graph ----------------------------------------------------------------
 WIDTH = {"motorway": 20, "trunk": 16, "primary": 13, "secondary": 11, "tertiary": 9.5, "unclassified": 7, "residential": 7, "living_street": 6,
          "service": 4.5, "busway": 7, "primary_link": 7, "secondary_link": 7, "tertiary_link": 6, "trunk_link": 7, "pedestrian": 6,
