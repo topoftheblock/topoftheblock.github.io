@@ -87,6 +87,23 @@ button { font: inherit; }
 /* the terminal on its own, full screen, for browsers that can't draw the 3D floor */
 #term2d { position: absolute; left: 50%; top: calc(50% + 26px); transform: translate(-50%, -50%); width: min(100vw, calc((100vh - 60px) * 4 / 3)); height: auto; cursor: pointer; touch-action: none; }
 
+/* On phones the 3D monitor is too small to read: the same terminal page, full screen, in real type */
+#term { position: fixed; z-index: 4; left: 0; right: 0; bottom: 0; top: var(--term-top, 64px); display: flex; flex-direction: column; background: #000; border-top: 1px solid #222; font-size: 14px; line-height: 1.5; color: var(--amber); }
+#term[hidden] { display: none; }
+#term .tbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: var(--blue); color: #fff; font-weight: 600; font-size: 12px; padding: 6px 12px; letter-spacing: .04em; text-transform: uppercase; }
+#term .tbar .px { color: var(--white); font-weight: 500; }
+#term .tbody { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 14px 16px calc(64px + env(safe-area-inset-bottom, 0px)); }
+#term h3 { margin: 18px 0 6px; padding: 3px 8px; background: #0b1a3d; color: #fff; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+#term p { margin: 0 0 12px; }
+#term ul { list-style: none; margin: 0 0 12px; padding: 0; counter-reset: n; }
+#term li { counter-increment: n; position: relative; padding: 0 0 10px 34px; color: var(--white); }
+#term li::before { content: counter(n); position: absolute; left: 0; top: 1px; min-width: 22px; padding: 0 4px; background: #c42b2b; color: #fff; font-size: 11px; font-weight: 700; text-align: center; line-height: 18px; }
+#term a { color: var(--yellow); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+#term .tbar span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 430px) { #term .tbar .px { display: none; } }
+#app:has(#term:not([hidden])) #osm { display: none; }
+#term .tstat { display: none; justify-content: space-between; padding: 5px 12px; background: #111; color: #8c8c8c; font-size: 10px; letter-spacing: .05em; }
+
 #osm { right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(var(--lb, 0px) + 4px + env(safe-area-inset-bottom, 0px)); font-size: 9px; color: #5c5c5c; text-decoration: none; }
 #osm:hover { color: var(--amber); }
 
@@ -131,6 +148,12 @@ button { font: inherit; }
       <button id="enter" hidden disabled>Enter</button>
     </div>
   </div>
+</div>
+
+<div id="term" hidden role="region" aria-live="polite">
+  <div class="tbar"><span id="term-title">About</span><span class="px" id="term-px"></span></div>
+  <div class="tbody" id="term-body"></div>
+  <div class="tstat"><span>1–4 PAGES · CANCEL BACK TO DESK</span><span id="term-time"></span></div>
 </div>
 
 <!-- The content lives here as plain HTML. The 3D terminal reads these sections, so edit them here only. -->
@@ -258,6 +281,28 @@ document.querySelectorAll("#flat section[data-page]").forEach((sec) => {
   });
   CONTENT[sec.dataset.page] = { title: norm(sec.querySelector("h2").textContent), blocks };
 });
+
+/* ================= the readable terminal, for small screens ================= */
+const termPanel = $("#term");
+$("#app").appendChild(termPanel);   // inside #app, so the HUD keys and Cancel stay on top of it
+const smallScreen = () => matchMedia("(max-width: 760px), (max-height: 520px)").matches;
+function showTermPanel(page) {
+  if (!page || page === "home" || !smallScreen()) { termPanel.hidden = true; return; }
+  const sec = document.querySelector(`#flat section[data-page="${page}"]`);
+  const body = $("#term-body");
+  body.innerHTML = "";
+  for (const el of sec.children) if (el.tagName !== "H2") body.appendChild(el.cloneNode(true));
+  body.querySelectorAll("a").forEach((a) => { a.target = "_blank"; a.rel = "noopener"; });
+  $("#term-title").textContent = "Christian Block · " + CONTENT[page].title;
+  $("#term-px").textContent = typeof mkt !== "undefined" && mkt.idx ? `DAX ${de(mkt.idx, 1)} ${sign(idxChg())} %` : "";
+  $("#term-time").textContent = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" }) + " FRANKFURT";
+  const hud = $("#hud-top");
+  termPanel.style.setProperty("--term-top", Math.ceil(hud.getBoundingClientRect().bottom + 8) + "px");
+  termPanel.hidden = false;
+  body.scrollTop = 0;
+  $("#back").hidden = false;
+}
+addEventListener("resize", () => { if (!termPanel.hidden && !smallScreen()) termPanel.hidden = true; });
 
 /* ================= start-up ================= */
 const app = $("#app");
@@ -2422,8 +2467,9 @@ function go(page) {
   term.page = page; term.scroll = 0;
   if (page !== "home") { lightLine(PAGES.indexOf(page)); sfx.click(); history.replaceState(null, "", "#" + page); term.msg = `Line ${PAGES.indexOf(page) + 1}: ${CONTENT[page].title}.`; }
   else { lightLine(-1); history.replaceState(null, "", location.pathname + location.search); term.msg = "Type help and press GO."; }
-  document.querySelectorAll("[data-go]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.go === page && view === "screen")));
+  document.querySelectorAll("[data-go]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.go === page && (view === "screen" || mode === "2d"))));
   drawScreen();
+  showTermPanel(page);
 }
 
 function runCmd() {
@@ -2653,6 +2699,7 @@ function setExposure(e) {
 }
 function setView(v, page) {
   if (!roomReady) return;
+  if (v !== "screen") termPanel.hidden = true;
   setExposure(v === "badge" ? 0.16 : v === "photo" && page === "father" ? 0.6 : v === "clock" ? 0.85 : 1.1);
   if (v !== "window" && lensFov) zoomFov(0);
   if (v === "screen") {
@@ -2701,7 +2748,7 @@ function setView(v, page) {
   $("#back").hidden = view === "room";
   $("#hint").hidden = view !== "room";
 }
-$("#back").addEventListener("click", () => setView("room"));
+$("#back").addEventListener("click", () => { if (mode === "2d") { go("home"); $("#back").hidden = true; } else setView("room"); });
 document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => {
   if (mode === "2d") { if (!entered) enterBtn.click(); go(b.dataset.go); return; }
   if (!roomReady) return;
