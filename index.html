@@ -68,7 +68,7 @@ button { font: inherit; }
 .bb-bar.top { background: var(--blue); color: #fff; }
 .bb-bar.keys { background: #111; color: var(--amber); justify-content: flex-start; flex-wrap: wrap; padding-top: 6px; }
 .bb-bar.keys span b { background: var(--yellow); color: #111; padding: 1px 5px; margin-right: 6px; border-radius: 2px; }
-.signon { flex: 1; overflow: auto; padding: 6vh max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px)); padding-left: max(8vw, 16px); }
+.signon { flex: 1; overflow: auto; display: flex; flex-direction: column; justify-content: center; padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px)); padding-left: max(8vw, 16px); }
 .mark { display: flex; align-items: baseline; gap: 14px; margin: 0 0 4px; }
 .mark b { background: var(--amber); color: var(--black); font-size: clamp(30px, 6vw, 52px); font-weight: 700; padding: 0 10px; line-height: 1.15; }
 .mark span { color: var(--white); font-size: clamp(22px, 4.2vw, 38px); font-weight: 600; letter-spacing: .28em; }
@@ -120,18 +120,13 @@ button { font: inherit; }
   <div id="toast" hidden role="status"><a id="toast-link" href="#" target="_blank" rel="noopener"></a><button id="toast-x" aria-label="Close">✕</button></div>
 
   <div id="boot">
-    <div class="bb-bar top"><span>ND TERMINAL · SIGN ON</span><span id="boot-time"></span></div>
     <div class="signon">
       <p class="mark"><b>ND</b><span>TERMINAL</span></p>
-      <p class="sub">Trading floor, 45th floor · Frankfurt am Main</p>
-      <div class="field"><span>Login Name</span><span>CHRISTIAN.BLOCK</span></div>
-      <div class="field"><span>Password</span><span>•••••••••• <i class="cur"></i></span></div>
-      <div id="log" aria-live="polite"></div>
+      <p class="sub">Christian Block · Frankfurt am Main</p>
       <div class="bar" aria-hidden="true"><i id="bar"></i></div>
-      <div class="go-row"><button class="key grn" id="enter" disabled>&lt;GO&gt;</button><span>Press &lt;GO&gt; to sign on and enter the floor</span></div>
-      <p class="boot-note">Signing on starts the floor sound. The Sound key mutes it.</p>
+      <div id="log" aria-live="polite"></div>
+      <button id="enter" hidden disabled>Enter</button>
     </div>
-    <div class="bb-bar keys"><span><b>1</b>About</span><span><b>2</b>Projects</span><span><b>3</b>Publications</span><span><b>4</b>Contact</span><span><b>F1</b>Help</span></div>
   </div>
 </div>
 
@@ -308,7 +303,7 @@ async function bootRoom() {
   window.__ndReady = true;
   requestAnimationFrame(loop);
   enterBtn.disabled = false;
-  enterBtn.focus({ preventScroll: true });
+  enterBtn.click();
 }
 
 // Without WebGL 2 (or if the 3D build fails) the terminal still works: drawn flat, full screen, same keys.
@@ -318,9 +313,8 @@ function startTerminal2D(reason) {
   log(reason);
   log("Terminal ......... opening without the 3D floor");
   progress(1);
-  enterBtn.textContent = "GO · Open the terminal";
   enterBtn.disabled = false;
-  enterBtn.focus({ preventScroll: true });
+  enterBtn.click();
 }
 function show2D() {
   canvas.hidden = true;
@@ -351,7 +345,7 @@ enterBtn.addEventListener("click", () => {
   if (mode === "2d") show2D();
   $("#boot").classList.add("out");
   setTimeout(() => ($("#boot").hidden = true), 750);
-  try { setSound(true); } catch (e) { console.warn("No sound:", e); } // the click is the gesture the browser needs before it plays sound
+  try { setSound(true); } catch (e) { console.warn("No sound:", e); }
   const h = location.hash.slice(1);
   if (PAGES.includes(h)) setTimeout(() => setView("screen", h), 250);
 });
@@ -1993,6 +1987,8 @@ function setSound(on) {
   if (roomReady) { term.msg = on ? "Floor sound on." : "Floor sound off."; drawScreen(); }
 }
 $("#sound").addEventListener("click", () => setSound(!soundOn));
+const unlockAudio = () => { if (soundOn && actx && actx.state === "suspended") actx.resume(); };
+["pointerdown", "keydown", "touchend"].forEach((ev) => addEventListener(ev, unlockAudio, { capture: true, passive: true }));
 
 /* ================= views & camera ================= */
 let view = "room", camTween = null, lensFov = 0;
