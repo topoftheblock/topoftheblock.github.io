@@ -1166,7 +1166,6 @@ function buildKeepsakes() {
     mesh(new THREE.PlaneGeometry(fw - 2 * b, fh - 2 * b), glassMat, 0, fh / 2, 0.006, lean);
     const strut = box(0.02, fh * 0.75, 0.006, frameMat, 0, fh * 0.36, -0.06, g); strut.rotation.x = 0.42;
     keep.frames[key] = { g, lean, center: () => lean.localToWorld(new THREE.Vector3(0, fh / 2, 0)), normal: () => new THREE.Vector3(0, 0, 1).transformDirection(lean.matrixWorld), info };
-    interactive(g, () => (view === "photo" ? null : label), () => setView("photo", key));
   };
   frame("dog", "img/dog.jpg", 0.12, 0.156, -0.9, -0.1, 0.62, "Photo: my dog", "My dog.");
   frame("father", "img/father.jpg", 0.14, 0.138, 0.74, -0.2, -0.45, "Photo: my father", "My father.");
@@ -1190,7 +1189,6 @@ function buildKeepsakes() {
     // the cable trails off towards the turret
     const cable = [[-0.085, 0.01, 0.04], [-0.12, 0.002, 0.1], [-0.2, 0.002, 0.13], [-0.3, 0.002, 0.08], [-0.36, 0.002, -0.02]].map((v) => new THREE.Vector3(...v));
     mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(cable), 40, 0.0018, 5), pad, 0, 0, 0, H);
-    interactive(H, () => "Headphones", () => toast(null, "Headset for the dealer board."));
   }
 
   /* --- reading glasses, folded and put down left of the keyboard: thin round metal frames --- */
@@ -1211,7 +1209,6 @@ function buildKeepsakes() {
       mesh(new THREE.SphereGeometry(0.0025, 8, 6), std({ color: "#e8e8e8", roughness: 0.2, transparent: true, opacity: 0.6 }), sx * 0.012, -0.014, 0.004, F);   // nose pads
     }
     const bridge = mesh(new THREE.TorusGeometry(0.007, 0.0011, 6, 16, Math.PI), wire, 0, 0.004, 0, F);
-    interactive(S, () => "Glasses", () => toast(null, "My glasses."));
   }
 
   /* --- my golf bag, in the corner between my desk and the glass; the clubs are left-handed --- */
@@ -1288,7 +1285,6 @@ function buildKeepsakes() {
   keep.golf.ball.visible = false;
   keep.golf.g = G;
   const corner = new THREE.PointLight("#b9c8ee", 1.6, 2.5, 2); corner.position.set(-1.6, 2.2, 0.35); scene.add(corner);   // a ceiling light left on in the corner
-  interactive(G, () => (keep.golf.busy ? null : "Golf bag"), golfEgg);
 }
 // Easter egg: walk over, the driver comes out of the bag the wrong way round for most people, and a ball gets away.
 function golfEgg() {
