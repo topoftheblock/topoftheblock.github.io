@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Night Desk</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="An empty trading floor at night, 45 floors above Frankfurt. The terminal on the desk holds the site.">
+<meta name="description" content="Christian Block, AI and data engineer in Frankfurt. An empty trading floor at night, 45 floors up; the terminal on the desk holds the site.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Caveat:wght@600&family=Barlow+Semi+Condensed:wght@500;700&display=swap">
@@ -61,21 +61,28 @@ button { font: inherit; }
 #toast a:not([href]) { color: var(--amber); }
 #toast button { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 2px 4px; }
 
-/* ---------- login screen ---------- */
-#boot { position: absolute; inset: 0; z-index: 10; background: var(--black); display: grid; place-items: center; padding: 24px max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px)); transition: opacity .6s ease; }
+/* ---------- login screen: a terminal sign-on, full screen ---------- */
+#boot { position: absolute; inset: 0; z-index: 10; background: var(--black); display: flex; flex-direction: column; transition: opacity .6s ease; }
 #boot.out { opacity: 0; pointer-events: none; }
-.login { width: min(620px, 100%); border: 1px solid var(--grey); }
-.login header { background: var(--blue); color: #fff; padding: 6px 10px; font-weight: 600; font-size: 12px; display: flex; justify-content: space-between; gap: 12px; }
-.login .body { padding: 18px 16px 16px; font-size: 13px; line-height: 1.55; }
-.login h1 { font-weight: 700; font-size: clamp(30px, 6vw, 44px); line-height: 1.05; color: var(--amber); margin: 0 0 4px; letter-spacing: .02em; }
-.login .sub { color: var(--white); margin: 0 0 16px; }
-.field { display: grid; grid-template-columns: 11ch 1fr; gap: 8px; }
-.field span:first-child { color: var(--muted); }
-.field span:last-child { color: var(--white); }
-#log { margin: 14px 0 12px; min-height: 7.8em; white-space: pre-wrap; color: var(--amber); font-size: 12px; }
-.bar { height: 12px; border: 1px solid var(--amber-dim); padding: 2px; margin-bottom: 16px; }
+.bb-bar { display: flex; justify-content: space-between; gap: 12px; padding: 6px max(16px, env(safe-area-inset-right, 0px)) 6px max(16px, env(safe-area-inset-left, 0px)); padding-top: calc(6px + env(safe-area-inset-top, 0px)); font-size: 12px; font-weight: 600; }
+.bb-bar.top { background: var(--blue); color: #fff; }
+.bb-bar.keys { background: #111; color: var(--amber); justify-content: flex-start; flex-wrap: wrap; padding-top: 6px; }
+.bb-bar.keys span b { background: var(--yellow); color: #111; padding: 1px 5px; margin-right: 6px; border-radius: 2px; }
+.signon { flex: 1; overflow: auto; padding: 6vh max(16px, env(safe-area-inset-right, 0px)) 24px max(16px, env(safe-area-inset-left, 0px)); padding-left: max(8vw, 16px); }
+.mark { display: flex; align-items: baseline; gap: 14px; margin: 0 0 4px; }
+.mark b { background: var(--amber); color: var(--black); font-size: clamp(30px, 6vw, 52px); font-weight: 700; padding: 0 10px; line-height: 1.15; }
+.mark span { color: var(--white); font-size: clamp(22px, 4.2vw, 38px); font-weight: 600; letter-spacing: .28em; }
+.signon .sub { color: var(--amber); margin: 6px 0 28px; font-size: 13px; }
+.field { display: grid; grid-template-columns: 14ch minmax(0, 32ch); gap: 12px; align-items: end; font-size: 15px; margin-bottom: 14px; max-width: 100%; }
+.field span:first-child { color: var(--amber); }
+.field span:last-child { color: var(--white); border-bottom: 2px solid var(--amber); padding: 0 4px 2px; min-height: 1.4em; }
+.field .cur { display: inline-block; width: .6em; height: 1.05em; background: var(--yellow); vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+#log { margin: 22px 0 12px; min-height: 7.8em; white-space: pre-wrap; color: var(--amber); font-size: 12px; max-width: 70ch; }
+.bar { height: 10px; border: 1px solid var(--amber-dim); padding: 2px; margin-bottom: 18px; max-width: 46ch; }
 .bar i { display: block; height: 100%; width: 0; background: var(--amber); transition: width .25s ease; }
-.boot-note { color: var(--muted); font-size: 11px; margin: 12px 0 0; }
+.go-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--amber); }
+.boot-note { color: var(--muted); font-size: 11px; margin: 14px 0 0; }
 
 /* the terminal on its own, full screen, for browsers that can't draw the 3D floor */
 #term2d { position: absolute; left: 50%; top: calc(50% + 26px); transform: translate(-50%, -50%); width: min(100vw, calc((100vh - 60px) * 4 / 3)); height: auto; cursor: pointer; touch-action: none; }
@@ -98,11 +105,11 @@ button { font: inherit; }
   <div class="lb t" aria-hidden="true"></div><div class="lb b" aria-hidden="true"></div>
 
   <div class="hud" id="hud-top">
-    <div class="brand"><b>ND</b><span>TOPOFTHEBLOCK &lt;GO&gt;</span></div>
+    <div class="brand"><b>ND</b><span>CHRISTIAN BLOCK &lt;GO&gt;</span></div>
     <div class="row" role="navigation" aria-label="Pages">
       <button class="key yel" data-go="about">1 About</button>
       <button class="key yel" data-go="projects">2 Projects</button>
-      <button class="key yel" data-go="writing">3 Writing</button>
+      <button class="key yel" data-go="publications">3 Publications</button>
       <button class="key yel" data-go="contact">4 Contact</button>
       <button class="key gry" id="sound" aria-pressed="false">Sound</button>
     </div>
@@ -113,19 +120,18 @@ button { font: inherit; }
   <div id="toast" hidden role="status"><a id="toast-link" href="#" target="_blank" rel="noopener"></a><button id="toast-x" aria-label="Close">✕</button></div>
 
   <div id="boot">
-    <div class="login">
-      <header><span>ND TERMINAL</span><span>LOGIN</span></header>
-      <div class="body">
-        <h1>NIGHT DESK</h1>
-        <p class="sub">Trading floor, 45th floor · Frankfurt am Main</p>
-        <div class="field"><span>USER</span><span>topoftheblock</span></div>
-        <div class="field"><span>PASSWORD</span><span>••••••••••</span></div>
-        <div id="log" aria-live="polite"></div>
-        <div class="bar" aria-hidden="true"><i id="bar"></i></div>
-        <button class="key grn" id="enter" disabled>GO · Enter the floor</button>
-        <p class="boot-note">Entering starts the floor sound. The Sound key mutes it.</p>
-      </div>
+    <div class="bb-bar top"><span>ND TERMINAL · SIGN ON</span><span id="boot-time"></span></div>
+    <div class="signon">
+      <p class="mark"><b>ND</b><span>TERMINAL</span></p>
+      <p class="sub">Trading floor, 45th floor · Frankfurt am Main</p>
+      <div class="field"><span>Login Name</span><span>CHRISTIAN.BLOCK</span></div>
+      <div class="field"><span>Password</span><span>•••••••••• <i class="cur"></i></span></div>
+      <div id="log" aria-live="polite"></div>
+      <div class="bar" aria-hidden="true"><i id="bar"></i></div>
+      <div class="go-row"><button class="key grn" id="enter" disabled>&lt;GO&gt;</button><span>Press &lt;GO&gt; to sign on and enter the floor</span></div>
+      <p class="boot-note">Signing on starts the floor sound. The Sound key mutes it.</p>
     </div>
+    <div class="bb-bar keys"><span><b>1</b>About</span><span><b>2</b>Projects</span><span><b>3</b>Publications</span><span><b>4</b>Contact</span><span><b>F1</b>Help</span></div>
   </div>
 </div>
 
@@ -135,40 +141,61 @@ button { font: inherit; }
     <header>
       <p class="name">topoftheblock</p>
       <nav aria-label="Sections">
-        <a href="#about">About</a><a href="#projects">Projects</a><a href="#writing">Writing</a><a href="#contact">Contact</a>
+        <a href="#about">About</a><a href="#projects">Projects</a><a href="#publications">Publications</a><a href="#contact">Contact</a>
       </nav>
     </header>
 
     <section data-page="about" id="about">
       <h2>About</h2>
-      <p>I'm a student developer working on the web and on language models. Right now I'm finishing my bachelor thesis on retrieval-augmented generation.</p>
-      <p>This site is an empty trading floor on the 45th floor above Frankfurt, late at night, in the rain. The terminal on the desk shows the same text you're reading here.</p>
+      <p>Christian Block. AI and data engineer in Frankfurt am Main, IT-Trainee in Software Engineering at Commerzbank since 09/2026.</p>
+      <p>I build end-to-end AI and data engineering systems: fine-tuned LLMs, agentic workflows and RAG pipelines, real-time streaming infrastructure, graph databases and interactive dashboards for large-scale NLP and financial applications.</p>
+      <h3>Experience</h3>
+      <ul>
+        <li>IT-Trainee Software Engineering, Commerzbank · 09/2026 to now</li>
+        <li>AI Engineer in Risk Controlling (work-study), KfW · 11/2025 to 09/2026. Built and tuned a RAG pipeline with semantic chunking, evaluated with LLM-as-a-Judge.</li>
+        <li>Researcher in Statistics, Goethe University Frankfurt · 10/2022 to 10/2025. Firm behaviour and market dynamics; statistical models built and validated in a team.</li>
+        <li>Research Assistant in Statistics, Goethe University Frankfurt · 02/2022 to 10/2022. Published an R package for econometric methods; wrote a non-linear optimisation solver in C++.</li>
+        <li>Data Scientist Risk Management (internship), BMW Group · 04/2021 to 10/2021. Full ML lifecycle for leasing data and vehicle depreciation.</li>
+        <li>Inhouse Consultant in Procurement (internship), Schaeffler Group · 10/2020 to 03/2021. Game-theoretic models for the first auction-based procurement programme.</li>
+        <li>Research Assistant (internship), ZEW Leibniz Centre for European Economic Research · 03/2020 to 05/2020</li>
+        <li>Research Assistant (internship), Walter Eucken Institute · 08/2019 to 10/2019</li>
+      </ul>
+      <h3>Education</h3>
+      <ul>
+        <li>B.Sc. Computer Science, Goethe University Frankfurt · 10/2023 to 11/2026</li>
+        <li>M.Sc. Quantitative Economics, Goethe University Frankfurt · 09/2021 to 10/2023</li>
+        <li>B.Sc. Economics, Goethe University Frankfurt · 05/2017 to 09/2020</li>
+      </ul>
+      <h3>Skills</h3>
+      <p>Python (PyTorch, pandas, LangChain, LangGraph, CrewAI), Java, SQL, Haskell, R, C++ (OpenMP, MPI, OpenCL). Neo4j, MongoDB, vector databases. Docker, Azure, Apache Spark, Airflow and Kafka, CI/CD, agentic AI, RAG, MCP.</p>
     </section>
 
     <section data-page="projects" id="projects">
       <h2>Projects</h2>
       <ul>
-        <li>Thesis_RAG: experiments with retrieval-augmented generation for my bachelor thesis.</li>
-        <li>Night Desk: this site. A three.js trading floor and Frankfurt skyline built entirely from code, with no 3D model files.</li>
-        <li>Site teardown: a static reverse-engineering report on how a 3D personal website loads and renders.</li>
-        <li><a href="https://github.com/topoftheblock">github.com/topoftheblock</a> has everything else.</li>
+        <li>AI-Driven Document Intelligence and Dataset Orchestration: a LangGraph agent that extracts assembly steps from PDF manuals, plus a YOLO pipeline that detects instruction panels. Python, LangGraph, computer vision.</li>
+        <li>Parliamentary NLP Platform: ETL for Bundestag XML protocols aligned with video, distributed sentiment, entity and topic extraction, and a dashboard with video-to-text sync. Java, MongoDB, NLP.</li>
+        <li>Multimodal Parliament Explorer: scrapes Bundestag session videos, syncs them with parsed speeches and speaker metadata, and generates PDF reports through a REST API. Java, MongoDB, Apache UIMA, Javalin.</li>
+        <li>ChatBundestag GraphRAG: hybrid GraphRAG over 214 Bundestag protocols with a ReAct assistant for centrality and shortest paths between politicians. Java, LangChain4j, Neo4j, Cypher.</li>
+        <li>Agentic Financial RAG System: parses SEC 10-K filings into clean Markdown tables and answers multi-year financial questions with a ReAct agent. Python, LangChain, ChromaDB.</li>
+        <li>Backtesting Strategy with Autoresearch: an LLM agent that evaluates backtests and rewrites its own PyTorch model architectures in a closed research loop. Python, LangGraph, agentic AI.</li>
+        <li>MCP Server for Staedel Museum: a Model Context Protocol server with rate limiting, two transports and interactive UI components rendered inside chat clients. TypeScript, MCP Apps.</li>
+        <li><a href="https://github.com/topoftheblock">github.com/topoftheblock</a> has the code.</li>
       </ul>
     </section>
 
-    <section data-page="writing" id="writing">
-      <h2>Writing</h2>
-      <p>Nothing published yet. Drafts on the desk:</p>
+    <section data-page="publications" id="publications">
+      <h2>Publications</h2>
       <ul>
-        <li>Loading a whole skyline without the page feeling slow</li>
-        <li>What a thesis taught me about retrieval pipelines</li>
+        <li>Maximilian Froese, Nickolas Maximilian Eickmann, Christian Block, Giuseppe Abrami, Alexander Mehler. Multimodal Emotion Explorer: Modular Multimodal Emotion Analysis, Diarization and Exploration of Big Data Corpora using Processor.</li>
       </ul>
     </section>
 
     <section data-page="contact" id="contact">
       <h2>Contact</h2>
-      <p>The fastest way to reach me is on GitHub.</p>
+      <p>Reach me on LinkedIn.</p>
       <ul>
-        <li><a href="https://github.com/topoftheblock">GitHub: topoftheblock</a></li>
+        <li><a href="https://www.linkedin.com/in/christian-block97">linkedin.com/in/christian-block97</a></li>
       </ul>
     </section>
   </div>
@@ -211,7 +238,7 @@ import { Reflector } from "three/addons/objects/Reflector.js";
 
 window.__ndStarted = true;
 const $ = (s) => document.querySelector(s);
-const SITE = "topoftheblock";
+const SITE = "Christian Block";
 // phones, tablets and small laptops get fewer pixels, smaller shadow maps and less rain
 const LOW = matchMedia("(pointer: coarse)").matches || (navigator.hardwareConcurrency || 8) <= 4;
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -223,14 +250,14 @@ const de = (n, d = 2) => n.toLocaleString("de-DE", { minimumFractionDigits: d, m
 const hhmm = (d = new Date()) => d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
 
 /* ================= content: read from the plain HTML ================= */
-const PAGES = ["about", "projects", "writing", "contact"];
+const PAGES = ["about", "projects", "publications", "contact"];
 const CONTENT = {};
 const norm = (s) => s.replace(/\s+/g, " ").trim();
 document.querySelectorAll("#flat section[data-page]").forEach((sec) => {
   const blocks = [];
-  sec.querySelectorAll(":scope > p, :scope > ul > li").forEach((el) => {
+  sec.querySelectorAll(":scope > p, :scope > h3, :scope > ul > li").forEach((el) => {
     const a = el.querySelector("a");
-    blocks.push({ type: el.tagName === "P" ? "p" : "li", text: norm(el.textContent), href: a ? a.href : null });
+    blocks.push({ type: el.tagName === "P" ? "p" : el.tagName === "H3" ? "h" : "li", text: norm(el.textContent), href: a ? a.href : null });
   });
   CONTENT[sec.dataset.page] = { title: norm(sec.querySelector("h2").textContent), blocks };
 });
@@ -246,13 +273,17 @@ const log = (t) => { logEl.textContent += (logEl.textContent ? "\n" : "") + t; }
 const progress = (p) => { barEl.style.width = Math.round(p * 100) + "%"; };
 const frame = () => new Promise((r) => requestAnimationFrame(() => r()));
 
+const bootTime = $("#boot-time");
+const tickBoot = () => { if (bootTime) bootTime.textContent = new Date().toLocaleString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).toUpperCase() + " FRANKFURT"; };
+tickBoot(); setInterval(tickBoot, 15000);
+
 function ensureRoom() {
   if (!roomPromise) roomPromise = bootRoom();
   return roomPromise;
 }
 
 async function bootRoom() {
-  log("ND TERMINAL v1.0   LOGIN topoftheblock");
+  log("ND TERMINAL v1.0   SIGN ON  CHRISTIAN.BLOCK");
   progress(0.05);
   if (document.fonts) await Promise.race([
     Promise.all(["500 20px IBM Plex Mono", "700 40px IBM Plex Mono", "600 40px Caveat", "700 40px Barlow Semi Condensed", "500 20px Barlow Semi Condensed"].map((f) => document.fonts.load(f))),
@@ -302,7 +333,6 @@ function show2D() {
   const h = location.hash.slice(1);
   go(PAGES.includes(h) ? h : "home");
   setInterval(() => { term.blink = !term.blink; drawScreen(); }, 500);
-  setInterval(() => { tickMarket(); }, 400);
   const at2d = (e) => { const r = scr.getBoundingClientRect(); return { x: ((e.clientX - r.left) / r.width) * SW, y: ((e.clientY - r.top) / r.height) * SH }; };
   let drag = null;
   scr.addEventListener("pointerdown", (e) => (drag = { y: e.clientY, y0: e.clientY }));
@@ -490,38 +520,46 @@ function stepTweens(dt) {
   }
 }
 
-/* ================= simulated market (fictional Frankfurt tickers) ================= */
-const mkt = {
-  syms: [["ZEIL", 64.2], ["ROEMER", 112.5], ["EBBEL", 23.8], ["MESSE", 88.1], ["OPER", 41.6], ["HBF", 17.9], ["MAIN", 203.4], ["DOM", 56.7], ["SKYL", 142.0], ["BOCK", 9.85], ["NIDDA", 31.2], ["TAUNUS", 77.3]]
-    .map(([s, p]) => ({ s, p, open: p * (1 + (Math.random() - 0.5) * 0.02), flash: 0 })),
-  idx: 18432.1, idxOpen: 18390.4, candles: [], tick: 0, line: [],
-};
-function idxNow() { return mkt.idxOpen * (mkt.syms.reduce((a, x) => a + x.p / x.open, 0) / mkt.syms.length) * 1.0023; }
-function tickMarket() {
-  for (const x of mkt.syms) {
-    const r = (Math.random() - 0.5) * 0.0035 + (x.open - x.p) / x.open * 0.002;
-    if (Math.random() < 0.55) { x.flash = Math.sign(r); x.p *= 1 + r; } else x.flash = 0;
-  }
-  mkt.idx = idxNow();
-  const c = mkt.candles[mkt.candles.length - 1];
-  if (!c || mkt.tick % 8 === 0) mkt.candles.push({ o: mkt.idx, h: mkt.idx, l: mkt.idx, c: mkt.idx });
-  else { c.c = mkt.idx; c.h = Math.max(c.h, mkt.idx); c.l = Math.min(c.l, mkt.idx); }
-  if (mkt.candles.length > 56) mkt.candles.shift();
-  mkt.line.push(mkt.idx); if (mkt.line.length > 160) mkt.line.shift();
-  mkt.tick++;
+/* ================= market data: DAX quotes and headlines =================
+   data/quotes.json is refreshed every 15 minutes in trading hours by a GitHub Action (scripts/fetch_quotes.py,
+   Yahoo Finance quotes, delayed; Google News headlines). The snapshot below is used until the file loads. */
+const MARKET_SNAPSHOT = {"index":{"sym":"DAX","name":"DAX Index","price":25622.61,"prev":25382.6,"time":1792166400,"series":[25487.0898,25530.4805,25525.9102,25534.8691,25544.6602,25539.6406,25538.0703,25558.6504,25542.8008,25526.9102,25525.4004,25576.5605,25588.5801,25602.0195,25594.6406,25581.1992,25600.9805,25611.8105,25617.2305,25627.1602,25648.7891,25644.2793,25650.5898,25629.1895,25635.0801,25626.3008,25621.2207,25631.1094,25628.1504,25633.0098,25633.9004,25640.5195,25613.4707,25633.5898,25607.0,25580.8301,25592.9199,25603.1797,25619.2207,25643.1797,25645.8809,25668.8301,25672.9707,25674.1797,25651.7402,25638.0391,25642.9199,25642.9902,25621.8691,25624.2109,25631.1895,25611.2109,25610.6699,25597.3594,25593.75,25587.4102,25580.2402,25578.7207,25593.3594,25604.4199,25613.9199,25601.2793,25595.9707,25610.25,25600.3496,25634.9102,25624.5898,25626.1191,25643.8594,25640.1602,25652.0605,25660.7695,25650.1094,25653.1094,25655.9492,25662.3105,25675.2109,25656.7305,25675.3008,25690.6504,25679.6309,25673.5703,25672.6992,25681.2891,25663.6797,25657.1191,25663.2891,25667.8496,25653.5098,25661.6406,25659.3809,25651.9609,25680.1191,25664.6797,25664.0195,25670.8008,25652.0098,25662.3008,25640.0898,25626.5195,25623.7793,25622.6094],"candles":[[1792052100,25237.93,25237.93,25193.69,25206.98],[1792053000,25205.73,25223.73,25183.21,25202.15],[1792053900,25202.18,25263.2,25194.28,25230.71],[1792054800,25231.5,25277.45,25226.85,25265.41],[1792055700,25265.6,25266.37,25215.87,25216.39],[1792056600,25216.39,25231.6,25209.91,25227.22],[1792057500,25226.95,25230.75,25195.47,25207.34],[1792058400,25207.57,25209.39,25170.7,25185.46],[1792059300,25185.26,25204.03,25182.11,25182.11],[1792060200,25185.59,25196.79,25172.66,25174.48],[1792061100,25174.09,25195.84,25173.15,25193.79],[1792062000,25193.79,25203.41,25171.84,25171.84],[1792062900,25171.65,25191.9,25163.75,25170.73],[1792063800,25170.78,25207.09,25168.17,25202.8],[1792064700,25202.8,25213.72,25158.0,25163.58],[1792065600,25163.58,25196.69,25160.29,25194.11],[1792066500,25194.02,25228.78,25191.81,25225.17],[1792067400,25227.26,25246.15,25196.76,25229.75],[1792068300,25229.16,25286.04,25229.16,25261.64],[1792069200,25261.64,25271.97,25248.49,25261.83],[1792070100,25263.03,25267.17,25232.59,25244.13],[1792071000,25244.29,25262.89,25217.09,25218.11],[1792071900,25216.28,25243.52,25195.07,25212.03],[1792072800,25212.3,25271.06,25203.64,25240.26],[1792073700,25241.76,25255.3,25231.1,25241.79],[1792074600,25241.79,25334.87,25233.04,25333.5],[1792075500,25333.5,25401.15,25327.96,25399.52],[1792076400,25399.33,25420.62,25383.4,25393.56],[1792077300,25393.06,25400.03,25358.06,25367.64],[1792134000,25495.28,25530.73,25466.09,25525.91],[1792134900,25524.56,25549.8,25514.12,25539.64],[1792135800,25538.91,25561.55,25525.21,25542.8],[1792136700,25542.75,25578.89,25515.79,25576.56],[1792137600,25577.69,25606.89,25566.91,25594.64],[1792138500,25595.42,25613.1,25575.94,25611.81],[1792139400,25611.73,25650.37,25605.59,25648.79],[1792140300,25648.18,25653.31,25629.13,25629.19],[1792141200,25629.19,25637.57,25611.65,25621.22],[1792142100,25621.22,25645.62,25620.9,25633.01],[1792143000,25632.87,25646.37,25613.47,25613.47],[1792143900,25613.47,25651.04,25576.15,25580.83],[1792144800,25585.11,25620.76,25577.1,25619.22],[1792145700,25619.22,25651.11,25618.95,25645.88],[1792146600,25382.62,25682.47,25382.62,25674.18],[1792147500,25674.18,25675.03,25636.97,25642.92],[1792148400,25643.17,25646.95,25619.99,25624.21],[1792149300,25624.21,25641.69,25608.94,25610.67],[1792150200,25611.22,25612.04,25580.23,25587.41],[1792151100,25587.41,25593.39,25570.63,25593.36],[1792152000,25593.59,25615.14,25592.02,25601.28],[1792152900,25601.28,25612.87,25594.28,25600.35],[1792153800,25600.27,25636.79,25598.84,25626.12],[1792154700,25626.12,25653.65,25620.48,25652.06],[1792155600,25652.06,25660.96,25641.8,25653.11],[1792156500,25652.13,25675.78,25651.79,25675.21],[1792157400,25675.34,25693.89,25650.55,25690.65],[1792158300,25692.14,25693.12,25661.87,25672.7],[1792159200,25672.65,25691.62,25653.68,25657.12],[1792160100,25656.6,25679.68,25644.9,25653.51],[1792161000,25653.71,25663.39,25643.52,25651.96],[1792161900,25651.67,25683.84,25650.25,25664.02],[1792162800,25664.26,25677.09,25639.63,25662.3],[1792163700,25662.27,25665.04,25613.44,25623.78],[1792164600,25622.61,25622.61,25622.61,25622.61]]},"stocks":[{"sym":"SAP","name":"SAP","price":199.22,"prev":201.25,"time":1792164929,"series":[199.94,200.9,200.8,201.15,201.35,201.45,201.8,201.7,202.1,201.95,202.0,202.55,202.2,202.7,202.6,202.7,202.8,202.45,202.45,202.45,202.5,202.65,202.8,202.75,202.65,202.55,202.45,202.35,202.45,202.65,202.75,202.9,202.8,202.8,202.85,202.4,202.5,202.55,202.45,202.45,202.45,201.25,202.6,202.9,202.9,202.8,202.9,202.875,202.9,202.95,202.9,202.6,202.675,202.35,202.6,202.35,202.15,202.2,202.3,202.0,202.1,201.9,201.8,202.1,202.1,202.15,201.85,201.75,202.0,202.05,202.15,202.3,202.25,202.4,202.3,202.65,203.35,203.3,201.6,202.3,202.2,202.65,203.0,202.4,201.1,200.65,201.35,200.85,200.1,199.62,199.33,200.05,200.3,199.42,199.38,199.38,199.0,199.52,199.18,199.28,199.02,199.22]},{"sym":"SIE","name":"Siemens","price":270.65,"prev":270.65,"time":1792164908,"series":[272.1,272.75,271.6,270.8,270.45,270.6,269.6,270.3,269.15,268.85,269.0,270.25,270.95,270.95,271.15,271.0,271.2,271.35,271.3,271.4,271.8,271.5,271.1,270.45,270.5,270.45,270.45,270.6,270.55,270.75,270.75,270.8,270.05,270.8,270.1,269.85,269.8,270.0,270.1,270.5,270.55,270.65,271.1,271.05,271.1,270.75,270.3,270.35,269.95,270.15,270.3,270.1,270.05,269.65,269.75,269.8,269.65,269.45,269.9,270.2,270.15,269.9,269.95,270.1,269.95,270.7,270.5,270.6,270.75,270.9,271.0,271.0,270.8,270.85,270.85,270.9,270.8,270.25,270.7,270.95,271.15,271.1,270.9,270.9,271.05,271.3,271.15,271.45,271.35,271.55,272.25,272.05,272.3,271.2,271.55,271.6,271.2,271.15,271.05,270.95,271.3,270.65]},{"sym":"ALV","name":"Allianz","price":433.9,"prev":429.8,"time":1792164906,"series":[430.3,430.3,431.2,431.5,431.7,431.7,432.3,432.2,432.2,432.4,431.9,432.8,432.4,432.7,432.1,431.7,431.8,432.3,432.6,432.5,432.5,432.4,432.6,432.4,432.7,432.3,432.2,432.6,432.4,432.5,432.6,432.7,432.6,433.1,432.4,431.8,432.0,431.9,432.2,432.8,432.9,429.8,433.0,433.1,433.1,432.7,432.4,432.1,431.1,430.9,430.5,430.6,430.6,430.3,429.9,430.1,430.4,430.5,430.7,430.9,431.0,430.8,431.0,431.2,431.0,431.9,432.0,432.0,432.4,432.1,432.5,432.9,432.9,432.8,432.8,433.1,433.0,433.2,433.3,433.1,433.4,433.3,433.5,433.6,433.7,433.5,433.8,433.9,433.9,433.8,433.8,433.3,433.6,433.7,433.7,434.5,434.9,434.5,434.2,433.8,433.7,433.9]},{"sym":"DTE","name":"Dt. Telekom","price":25.89,"prev":25.59,"time":1792164907,"series":[25.72,25.78,25.87,25.92,25.92,25.86,25.91,25.9,25.9,25.9,25.86,25.87,25.83,25.83,25.85,25.83,25.87,25.86,25.85,25.87,25.84,25.85,25.86,25.87,25.89,25.87,25.89,25.87,25.86,25.87,25.86,25.87,25.86,25.88,25.89,25.84,25.87,25.88,25.89,25.92,25.93,25.59,25.96,25.95,25.94,25.93,25.95,25.96,25.93,25.92,25.93,25.92,25.94,25.94,25.93,25.94,25.94,25.92,25.92,25.91,25.91,25.9,25.91,25.94,25.92,25.96,25.99,25.98,25.99,26.0,26.0,25.96,25.97,25.96,25.98,25.98,25.99,25.95,25.96,25.98,25.99,25.99,25.97,25.94,25.89,25.83,25.82,25.82,25.83,25.89,25.87,25.86,25.91,25.93,25.92,25.93,25.93,25.92,25.93,25.96,25.95,25.89]},{"sym":"MBG","name":"Mercedes-Benz","price":41.085,"prev":39.94,"time":1792164997,"series":[40.225,40.385,40.31,40.36,40.5,40.505,40.51,40.61,40.7,40.74,40.75,40.785,40.685,40.77,40.78,40.78,40.86,40.88,40.915,40.855,40.89,40.89,40.94,40.855,40.865,40.87,40.9,40.925,40.895,40.945,41.005,41.05,41.015,41.1,41.01,40.93,41.075,41.06,41.11,41.18,41.195,39.94,41.32,41.305,41.315,41.29,41.31,41.28,41.29,41.28,41.305,41.255,41.26,41.305,41.3,41.26,41.23,41.2,41.29,41.255,41.285,41.24,41.225,41.265,41.21,41.23,41.16,41.105,41.13,41.13,41.145,41.12,41.08,41.06,41.11,41.165,41.175,41.16,41.28,41.235,41.22,41.25,41.32,41.255,41.255,41.215,41.21,41.225,41.245,41.27,41.275,41.185,41.27,41.26,41.25,41.255,41.27,41.275,41.155,41.13,41.16,41.085]},{"sym":"BMW","name":"BMW","price":57.06,"prev":55.12,"time":1792165170,"series":[55.42,55.62,55.64,55.74,56.02,56.04,56.0,56.18,56.28,56.3,56.34,56.34,56.26,56.3,56.36,56.44,56.6,56.76,56.74,56.64,56.74,56.7,56.7,56.58,56.58,56.58,56.64,56.7,56.68,56.74,56.78,56.8,56.76,56.84,56.7,56.68,56.78,56.78,56.82,56.94,56.96,55.12,57.18,57.2,57.24,57.12,57.12,57.12,57.14,57.14,57.18,57.12,57.14,57.14,57.18,57.12,57.1,57.06,57.1,57.16,57.2,57.16,57.08,57.14,57.1,57.12,57.04,56.92,56.94,56.94,57.04,56.84,56.82,56.78,56.82,56.98,57.0,56.96,57.16,57.2,57.14,57.12,57.18,57.1,57.12,57.12,57.14,57.18,57.14,57.2,57.14,57.12,57.16,57.14,57.12,57.12,57.12,57.08,56.94,56.92,57.0,57.06]},{"sym":"DBK","name":"Deutsche Bank","price":29.33,"prev":29.12,"time":1792165067,"series":[29.42,29.4,29.3,29.38,29.44,29.485,29.45,29.455,29.38,29.35,29.325,29.42,29.435,29.495,29.45,29.4,29.46,29.5,29.47,29.505,29.51,29.525,29.525,29.515,29.49,29.525,29.505,29.53,29.48,29.46,29.46,29.465,29.445,29.52,29.42,29.37,29.415,29.41,29.42,29.49,29.55,29.12,29.565,29.56,29.545,29.5,29.465,29.5,29.47,29.45,29.48,29.44,29.42,29.39,29.39,29.375,29.365,29.38,29.435,29.44,29.46,29.415,29.42,29.44,29.375,29.42,29.395,29.385,29.415,29.415,29.435,29.465,29.405,29.405,29.435,29.46,29.49,29.52,29.6,29.53,29.435,29.4,29.405,29.36,29.36,29.41,29.43,29.45,29.46,29.485,29.43,29.41,29.485,29.485,29.455,29.47,29.435,29.455,29.45,29.375,29.36,29.33]},{"sym":"CBK","name":"Commerzbank","price":37.88,"prev":37.7,"time":1792165037,"series":[38.12,38.11,38.11,38.095,38.2,38.27,38.24,38.22,38.075,38.07,37.99,38.08,38.15,38.26,38.195,38.16,38.2,38.25,38.24,38.28,38.29,38.29,38.29,38.22,38.23,38.28,38.25,38.26,38.19,38.2,38.18,38.14,38.1,38.16,38.1,38.06,38.08,38.09,38.15,38.21,38.23,37.7,38.28,38.35,38.41,38.34,38.32,38.39,38.36,38.31,38.3,38.22,38.26,38.24,38.22,38.18,38.2,38.19,38.23,38.27,38.3,38.24,38.24,38.22,38.19,38.25,38.23,38.2,38.25,38.22,38.24,38.25,38.22,38.18,38.21,38.24,38.23,38.23,38.25,38.18,38.17,38.18,38.14,38.07,38.09,38.15,38.18,38.17,38.21,38.32,38.25,38.18,38.19,38.17,38.11,38.15,38.13,38.12,38.05,37.96,38.0,37.88]},{"sym":"BAS","name":"BASF","price":53.23,"prev":52.62,"time":1792165140,"series":[52.66,52.7,52.73,52.86,52.87,52.78,52.73,52.7,52.75,52.75,52.81,52.79,52.73,52.8,52.8,52.73,52.79,52.83,52.9,52.86,52.85,52.85,52.85,52.82,52.82,52.86,52.84,52.82,52.85,52.87,52.9,52.92,52.89,52.95,52.89,52.87,52.81,52.81,52.87,52.94,52.92,52.62,52.97,52.97,53.01,53.0,53.01,53.07,53.04,53.07,53.05,53.01,53.0,52.95,52.99,53.01,53.0,53.0,53.03,53.02,53.04,53.01,53.02,53.05,53.02,53.06,53.13,53.16,53.22,53.23,53.23,53.25,53.21,53.25,53.23,53.21,53.19,53.25,53.29,53.28,53.28,53.31,53.29,53.2,53.29,53.27,53.3,53.28,53.29,53.33,53.21,53.16,53.21,53.27,53.28,53.26,53.3,53.34,53.32,53.26,53.27,53.23]},{"sym":"AIR","name":"Airbus","price":198.92,"prev":194.7,"time":1792164917,"series":[194.84,195.32,195.36,195.8,195.94,196.38,195.98,196.68,196.42,195.98,196.48,196.48,196.82,196.76,197.06,197.02,197.42,197.9,198.06,197.92,198.34,198.62,198.86,198.56,198.82,198.76,198.5,198.3,198.16,198.14,198.2,198.12,197.94,198.24,198.02,197.84,197.7,198.18,198.36,198.48,198.44,194.7,198.32,198.38,198.46,198.16,197.98,198.16,197.8,197.9,197.96,197.66,197.74,197.8,197.86,197.76,197.58,197.66,197.64,197.84,198.14,198.0,197.9,198.08,197.94,198.26,198.02,198.08,198.26,198.24,198.5,198.58,198.46,198.34,198.58,198.42,198.62,198.88,200.05,199.5,199.18,198.98,199.24,199.76,199.94,199.74,199.36,199.62,199.72,199.62,199.86,199.98,200.2,200.35,200.25,200.15,200.35,200.3,199.42,199.46,199.3,198.92]},{"sym":"MUV2","name":"Munich Re","price":547.2,"prev":544.8,"time":1792164920,"series":[542.3,542.6,544.8,545.4,545.4,545.2,545.8,546.0,547.6,547.4,547.4,547.6,547.0,546.6,546.0,545.2,545.6,545.6,546.0,545.8,546.0,546.2,546.2,546.2,546.0,546.4,546.6,546.6,547.2,547.0,546.8,546.6,546.6,546.4,545.4,544.6,544.0,543.8,543.8,544.0,544.2,544.8,543.8,544.0,544.2,544.0,543.4,543.0,543.0,542.8,542.0,541.6,541.2,540.4,540.0,540.2,539.6,539.8,539.8,540.4,540.8,540.8,540.6,540.6,541.2,542.0,542.2,542.4,542.8,542.4,542.8,543.6,543.4,543.2,543.1,543.6,543.2,543.4,544.0,544.0,544.2,545.2,545.4,545.4,545.0,544.0,544.8,544.4,545.2,545.4,545.6,545.0,545.2,546.0,546.4,547.0,546.6,547.4,547.0,546.0,545.6,547.2]},{"sym":"IFX","name":"Infineon","price":52.39,"prev":52.47,"time":1792165148,"series":[53.01,52.86,52.62,52.4,52.24,51.99,51.87,52.06,51.84,51.78,51.66,51.79,52.1,52.16,52.12,52.05,52.16,52.25,52.28,52.52,52.63,52.51,52.52,52.44,52.43,52.45,52.41,52.49,52.63,52.66,52.64,52.7,52.54,52.56,52.5,52.48,52.44,52.43,52.57,52.55,52.55,52.47,52.64,52.68,52.62,52.55,52.53,52.55,52.69,52.69,52.77,52.67,52.67,52.57,52.44,52.5,52.51,52.54,52.58,52.63,52.73,52.79,52.77,52.77,52.92,52.95,52.86,52.81,52.79,52.79,52.79,52.81,52.74,52.74,52.7,52.66,52.58,52.38,52.59,52.72,52.39,52.43,52.16,52.49,52.43,52.59,52.53,52.64,52.54,52.77,52.8,52.85,52.88,52.77,52.93,52.67,52.37,52.47,52.42,52.34,52.35,52.39]}],"news":[{"title":"Börse Frankfurt: DAX beendet den Freitagshandel im Plus","source":"finanzen.at","time":"2026-10-16T15:58:35+00:00"},{"title":"Aktien Frankfurt Schluss: Dax schüttelt Zins- und KI-Sorgen ab - T-Online","source":"T-Online","time":"2026-10-16T15:45:00+00:00"},{"title":"Börse Frankfurt in Grün: LUS-DAX am Mittag fester","source":"Finanzen.net","time":"2026-10-16T10:31:51+00:00"},{"title":"Börse Frankfurt: TecDAX am Mittag mit Gewinnen","source":"Finanzen.net","time":"2026-10-16T10:31:17+00:00"},{"title":"Börse Frankfurt in Grün: mittags Gewinne im LUS-DAX","source":"finanzen.ch","time":"2026-10-16T10:26:16+00:00"},{"title":"Börse Frankfurt in Grün: MDAX steigt","source":"Finanzen.net","time":"2026-10-16T10:25:42+00:00"},{"title":"Aktien Frankfurt: Dax schüttelt KI- und Zinssorgen vorerst ab - T-Online","source":"T-Online","time":"2026-10-16T09:53:00+00:00"},{"title":"Börse Frankfurt in Grün: DAX notiert zum Handelsstart im Plus","source":"finanzen.ch","time":"2026-10-16T07:36:34+00:00"},{"title":"Börse Frankfurt in Grün: TecDAX verbucht zum Handelsstart Gewinne","source":"Finanzen.net","time":"2026-10-16T07:27:42+00:00"},{"title":"Börse Frankfurt in Rot: LUS-DAX nachmittags schwächer","source":"finanzen.ch","time":"2026-10-15T19:03:39+00:00"}],"updated":"2026-10-17T06:08:57+00:00"};
+const MARKET_URLS = ["https://raw.githubusercontent.com/topoftheblock/topoftheblock.github.io/main/data/quotes.json", "data/quotes.json"];
+const mkt = { syms: [], idx: 0, idxOpen: 0, candles: [], line: [], news: [], updated: new Date(), tick: 0 };
+function applyMarket(d) {
+  const old = new Map(mkt.syms.map((s) => [s.s, s.p]));
+  mkt.syms = d.stocks.map((x) => ({ s: x.sym, name: x.name, p: x.price, open: x.prev, series: x.series || [], flash: old.has(x.sym) ? Math.sign(x.price - old.get(x.sym)) : 0 }));
+  mkt.idx = d.index.price; mkt.idxOpen = d.index.prev;
+  mkt.candles = (d.index.candles || []).map(([t, o, h, l, c]) => ({ t, o, h, l, c }));
+  mkt.line = d.index.series && d.index.series.length > 1 ? d.index.series : mkt.candles.map((c) => c.c);
+  mkt.news = (d.news || []).map((n) => ({ title: n.title, source: n.source, time: new Date(n.time) }));
+  mkt.updated = new Date(d.index.time ? d.index.time * 1000 : d.updated);
 }
-for (let i = 0; i < 56 * 8; i++) tickMarket();
+async function loadMarket() {
+  for (const u of MARKET_URLS) {
+    try {
+      const r = await fetch(u.startsWith("http") ? u + "?t=" + Math.floor(Date.now() / 60000) : u, { cache: "no-store" });
+      if (r.ok) { applyMarket(await r.json()); return true; }
+    } catch (e) { /* blocked or offline: try the next source, keep what we have */ }
+  }
+  return false;
+}
+applyMarket(MARKET_SNAPSHOT);
+loadMarket().then((ok) => ok && typeof drawMarkets === "function" && market.chart && drawMarkets(true));
+setInterval(() => loadMarket().then((ok) => ok && market.chart && drawMarkets(true)), 5 * 60 * 1000);
 const idxChg = () => (mkt.idx / mkt.idxOpen - 1) * 100;
-const HEADLINES = [
-  "Apfelwein futures steady ahead of Sachsenhausen open",
-  "Rain over Frankfurt set to last through the night",
-  "Main water level up 4 cm; analysts call it a river",
-  "FFM40 drifts as the late session thins out",
-  "Thesis chapter 4: delivery now expected Friday",
-  "Gruene Sosse supply tight, say Bornheim traders",
-  "Night owls lift coffee sector after hours",
-  "Messe halls quiet; umbrellas sold out on the Zeil",
-];
+const chgOf = (x) => (x.p / x.open - 1) * 100;
+const sign = (v, d = 2) => (v >= 0 ? "+" : "") + de(v, d);
+// headlines for the news screen and the TV; if none are available, a recap built from the quotes
+function headlines() {
+  if (mkt.news.length) return mkt.news;
+  const s = [...mkt.syms].sort((a, b) => chgOf(b) - chgOf(a)), t = mkt.updated;
+  return [
+    { title: `DAX ${idxChg() >= 0 ? "higher" : "lower"} at ${de(mkt.idx, 1)} points, ${sign(idxChg())} %`, source: "ND", time: t },
+    { title: `${s[0].name} leads the gainers, ${sign(chgOf(s[0]))} %`, source: "ND", time: t },
+    { title: `${s[s.length - 1].name} at the bottom, ${sign(chgOf(s[s.length - 1]))} %`, source: "ND", time: t },
+  ];
+}
 
 /* ================= the floor ================= */
 const DESK_Y = 0.74;
@@ -650,7 +688,7 @@ function buildRoom() {
     mesh(new THREE.BoxGeometry(0.1, 0.06, 0.03), M.frame, 0, 0, -0.025, g);
     if (isTerminal) return g;
     const s = mesh(new THREE.PlaneGeometry(0.37, 0.278), screenMatFor(tex), 0, 0, 0.0135, g);
-    interactive(s, () => "Market screens: a simulated feed", () => toast(null, `FFM40 ${de(mkt.idx, 1)} (${idxChg() >= 0 ? "+" : ""}${de(idxChg())} %). Every number on these screens is simulated.`));
+    interactive(s, () => "Market screens: DAX", () => toast(null, `DAX ${de(mkt.idx, 1)} (${sign(idxChg())} %) · quotes from ${hhmm(mkt.updated)}, delayed`));
     return g;
   };
   monitor(-0.405, 1.36, 0.32, market.chart); monitor(0, 1.36, 0, market.heat); monitor(0.405, 1.36, -0.32, market.news);
@@ -939,8 +977,8 @@ function buildBadge(M) {
     g.fillStyle = "#8e96a6"; g.beginPath(); g.arc(165, 285, 68, 0, 7); g.fill();
     g.beginPath(); g.ellipse(165, 480, 112, 100, 0, Math.PI, 0); g.fill();
     g.textBaseline = "alphabetic";
-    g.fillStyle = "#111111"; g.font = "700 50px IBM Plex Mono"; g.fillText("topoftheblock", 325, 215);
-    [["Abteilung", "Handel / Trading"], ["Etage", "45. OG"], ["Personal-Nr.", "004521"], ["Gültig bis", "12/2027"]].forEach(([k, v], i) => {
+    g.fillStyle = "#111111"; g.font = "700 50px IBM Plex Mono"; g.fillText("Christian Block", 325, 215);
+    [["Abteilung", "Software Engineering"], ["Etage", "45. OG"], ["Personal-Nr.", "004521"], ["Gültig bis", "12/2027"]].forEach(([k, v], i) => {
       g.font = "500 22px IBM Plex Mono"; g.fillStyle = "#6b7280"; g.fillText(k, 325, 285 + i * 50);
       g.font = "600 28px IBM Plex Mono"; g.fillStyle = "#111111"; g.fillText(v, 560, 285 + i * 50);
     });
@@ -1007,12 +1045,12 @@ function header(g, w, text) {
   g.fillStyle = "#1d3c8f"; g.fillRect(0, 0, w, 34);
   g.fillStyle = "#ffffff"; g.font = "500 20px IBM Plex Mono, monospace"; g.textBaseline = "middle"; g.textAlign = "left";
   g.fillText(text, 10, 18);
-  g.fillStyle = "#8c8c8c"; g.textAlign = "right"; g.fillText("SIMULATED", w - 10, 18); g.textAlign = "left";
+  g.fillStyle = "#8c8c8c"; g.textAlign = "right"; g.fillText(hhmm(mkt.updated), w - 10, 18); g.textAlign = "left";
 }
 function drawMarkets(all) {
   // candlesticks
   { const g = market.chart.userData.ctx, w = 512, h = 384;
-    g.fillStyle = BLUEBG; g.fillRect(0, 0, w, h); header(g, w, "FFM40 INDEX  1 MIN");
+    g.fillStyle = BLUEBG; g.fillRect(0, 0, w, h); header(g, w, "DAX INDEX  15 MIN");
     const cs = mkt.candles, lo = Math.min(...cs.map((c) => c.l)), hi = Math.max(...cs.map((c) => c.h)), pad = (hi - lo) * 0.1 || 1;
     const Y = (v) => 50 + (1 - (v - lo + pad) / (hi - lo + 2 * pad)) * (h - 70);
     g.strokeStyle = GRID; g.lineWidth = 1;
@@ -1028,7 +1066,7 @@ function drawMarkets(all) {
     market.chart.needsUpdate = true; }
   // watchlist
   { const g = market.watch.userData.ctx, w = 512, h = 384;
-    g.fillStyle = BLUEBG; g.fillRect(0, 0, w, h); header(g, w, "WATCHLIST  FFM");
+    g.fillStyle = BLUEBG; g.fillRect(0, 0, w, h); header(g, w, "WATCHLIST  DAX");
     g.font = "500 19px IBM Plex Mono, monospace"; g.fillStyle = "#8c8c8c"; g.fillText("SYM", 12, 50); g.fillText("LAST", 200, 50); g.fillText("CHG %", 370, 50);
     mkt.syms.forEach((x, i) => {
       const y = 76 + i * 25, chg = (x.p / x.open - 1) * 100;
@@ -1037,22 +1075,22 @@ function drawMarkets(all) {
       g.fillStyle = chg >= 0 ? UPC : DNC; g.fillText((chg >= 0 ? "+" : "") + de(chg), 370, y);
     });
     market.watch.needsUpdate = true; }
-  // order book
+  // movers: the twelve names ranked by today's change
   { const g = market.book.userData.ctx, w = 512, h = 384;
-    g.fillStyle = BLUEBG; g.fillRect(0, 0, w, h); header(g, w, "FFM40 FUT  DEPTH");
-    g.font = "500 19px IBM Plex Mono, monospace";
-    for (let i = 0; i < 6; i++) {
-      const ask = mkt.idx + 0.5 + i * 0.5, bid = mkt.idx - 0.5 - i * 0.5, sa = 20 + Math.random() * 180, sb = 20 + Math.random() * 180;
-      const ya = 190 - i * 24, yb = 214 + i * 24;
-      g.fillStyle = "rgba(255,84,104,.25)"; g.fillRect(w - 20 - sa, ya - 11, sa, 22);
-      g.fillStyle = "rgba(52,209,127,.25)"; g.fillRect(w - 20 - sb, yb - 11, sb, 22);
-      g.fillStyle = DNC; g.fillText(de(ask, 1), 20, ya); g.fillText(String(Math.round(sa)), 200, ya);
-      g.fillStyle = UPC; g.fillText(de(bid, 1), 20, yb); g.fillText(String(Math.round(sb)), 200, yb);
-    }
+    g.fillStyle = BLUEBG; g.fillRect(0, 0, w, h); header(g, w, "DAX MOVERS  % CHG");
+    const s = [...mkt.syms].sort((a, b) => chgOf(b) - chgOf(a)), max = Math.max(0.5, ...s.map((x) => Math.abs(chgOf(x))));
+    g.font = "500 18px IBM Plex Mono, monospace"; g.textBaseline = "middle";
+    s.forEach((x, i) => {
+      const y = 54 + i * 27, c = chgOf(x), bw = (Math.abs(c) / max) * 150;
+      g.fillStyle = "#ffa028"; g.fillText(x.s, 12, y);
+      g.fillStyle = c >= 0 ? UPC : DNC; g.fillRect(c >= 0 ? 300 : 300 - bw, y - 9, Math.max(2, bw), 18);
+      g.fillText(sign(c), c >= 0 ? 300 - 80 : 310, y);
+    });
+    g.fillStyle = "#3a3a3a"; g.fillRect(299, 42, 2, 330);
     market.book.needsUpdate = true; }
   // heat map
   { const g = market.heat.userData.ctx, w = 512, h = 384;
-    g.fillStyle = BLUEBG; g.fillRect(0, 0, w, h); header(g, w, "FFM40 HEAT MAP");
+    g.fillStyle = BLUEBG; g.fillRect(0, 0, w, h); header(g, w, "DAX HEAT MAP");
     mkt.syms.forEach((x, i) => {
       const cx = (i % 4) * 126 + 4, cy = 42 + Math.floor(i / 4) * 112, chg = (x.p / x.open - 1) * 100, k = Math.min(1, Math.abs(chg) / 1.2);
       g.fillStyle = chg >= 0 ? `rgba(30,${120 + 80 * k},${70 + 30 * k},${0.35 + 0.55 * k})` : `rgba(${150 + 90 * k},40,60,${0.35 + 0.55 * k})`;
@@ -1060,38 +1098,41 @@ function drawMarkets(all) {
       g.fillStyle = "#ffffff"; g.font = "500 22px IBM Plex Mono, monospace"; g.fillText(x.s, cx + 8, cy + 24); g.font = "500 19px IBM Plex Mono, monospace"; g.fillText((chg >= 0 ? "+" : "") + de(chg) + " %", cx + 8, cy + 82);
     });
     market.heat.needsUpdate = true; }
-  if (all || mkt.tick % 6 === 0) {
-    const g = market.news.userData.ctx, w = 512, h = 384;
-    g.fillStyle = BLUEBG; g.fillRect(0, 0, w, h); header(g, w, "TOP NEWS");
-    const start = Math.floor(mkt.tick / 30) % HEADLINES.length;
-    g.font = "500 19px IBM Plex Mono, monospace";
-    for (let i = 0; i < 6; i++) {
-      const t = HEADLINES[(start + i) % HEADLINES.length], y = 64 + i * 54;
-      g.fillStyle = i === 0 ? "#ffa028" : "#8c8c8c"; g.fillText(hhmm(new Date(Date.now() - i * 7 * 60000)), 10, y);
+  {
+    const g = market.news.userData.ctx, w = 512, h = 384, list = headlines();
+    g.fillStyle = BLUEBG; g.fillRect(0, 0, w, h); header(g, w, "TOP NEWS  DAX");
+    g.font = "500 17px IBM Plex Mono, monospace"; g.textBaseline = "alphabetic";
+    let y = 62;
+    list.slice(0, 6).forEach((n, i) => {
+      if (y > h - 20) return;
+      g.fillStyle = i === 0 ? "#ffa028" : "#8c8c8c"; g.fillText(hhmm(n.time), 10, y);
       g.fillStyle = i === 0 ? "#ffffff" : "#ffa028";
-      const words = t.split(" "); let line = "", ly = y;
-      for (const wd of words) { if (g.measureText(line + wd).width > 400) { g.fillText(line, 90, ly); line = ""; ly += 24; } line += wd + " "; }
-      g.fillText(line, 90, ly);
-    }
+      const words = n.title.split(" "); let line = "", lines = 0;
+      for (const wd of words) { if (g.measureText(line + wd).width > 400 && line) { if (lines < 2) g.fillText(line, 80, y); line = ""; y += 21; lines++; } line += wd + " "; }
+      if (lines < 3) g.fillText(line, 80, y);
+      g.fillStyle = "#5c5c5c"; g.fillText(n.source.slice(0, 26), 80, y + 19);
+      y += 50;
+    });
     market.news.needsUpdate = true;
   }
 }
+
 function drawTicker() {
   const g = ticker.userData.ctx, w = 2048, h = 64;
   g.fillStyle = "#02050a"; g.fillRect(0, 0, w, h);
   g.font = "500 32px IBM Plex Mono, monospace"; g.textBaseline = "middle";
   let x = 10;
-  const items = [["FFM40", mkt.idx, idxChg()], ...mkt.syms.map((s) => [s.s, s.p, (s.p / s.open - 1) * 100])];
+  const items = [["DAX", mkt.idx, idxChg()], ...mkt.syms.map((s) => [s.s, s.p, chgOf(s)])];
   while (x < w) for (const [s, p, c] of items) {
     if (x > w) break;
     g.fillStyle = "#ffa028"; g.fillText(s, x, h / 2); x += g.measureText(s).width + 12;
-    g.fillStyle = c >= 0 ? UPC : DNC; const t = `${de(p, s === "FFM40" ? 1 : 2)} ${c >= 0 ? "▲" : "▼"}${de(Math.abs(c))}%`;
+    g.fillStyle = c >= 0 ? UPC : DNC; const t = `${de(p, s === "DAX" ? 1 : 2)} ${c >= 0 ? "▲" : "▼"}${de(Math.abs(c))}%`;
     g.fillText(t, x, h / 2); x += g.measureText(t).width + 40;
   }
   ticker.needsUpdate = true;
 }
 
-/* ================= MAIN TV: a fictional business-news channel ================= */
+/* ================= MAIN TV: the business channel over the floor ================= */
 let tvHead = 0, tvCrawl = 0;
 function drawTV(dt) {
   const g = tv.tex.userData.ctx, w = 1024, h = 576;
@@ -1106,14 +1147,14 @@ function drawTV(dt) {
   }
   // the segment: a big index panel
   g.fillStyle = "rgba(4,12,28,.85)"; g.fillRect(40, 70, 600, 300);
-  g.fillStyle = "#ffffff"; g.font = "700 30px Barlow Semi Condensed"; g.textBaseline = "alphabetic"; g.fillText("FFM40 · TONIGHT", 60, 108);
+  g.fillStyle = "#ffffff"; g.font = "700 30px Barlow Semi Condensed"; g.textBaseline = "alphabetic"; g.fillText("DAX · " + mkt.updated.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" }).toUpperCase(), 60, 108);
   const ln = mkt.line, lo = Math.min(...ln), hi = Math.max(...ln);
   g.strokeStyle = idxChg() >= 0 ? UPC : DNC; g.lineWidth = 3; g.beginPath();
   ln.forEach((v, i) => { const x = 60 + (i / (ln.length - 1)) * 560, y = 350 - ((v - lo) / (hi - lo || 1)) * 210; i ? g.lineTo(x, y) : g.moveTo(x, y); });
   g.stroke();
   g.fillStyle = "#ffffff"; g.font = "700 64px Barlow Semi Condensed"; g.fillText(de(mkt.idx, 1), 670, 170);
   g.fillStyle = idxChg() >= 0 ? UPC : DNC; g.font = "700 40px Barlow Semi Condensed"; g.fillText(`${idxChg() >= 0 ? "▲ +" : "▼ "}${de(idxChg())} %`, 670, 222);
-  g.fillStyle = "#9fb6dd"; g.font = "500 24px Barlow Semi Condensed"; g.fillText("simulated, like everything here", 670, 258);
+  g.fillStyle = "#9fb6dd"; g.font = "500 24px Barlow Semi Condensed"; g.fillText("Stand " + hhmm(mkt.updated) + " Uhr · Xetra", 670, 258);
   // bug and clock
   g.fillStyle = "#1f6fff"; g.fillRect(40, 20, 150, 38);
   g.fillStyle = "#ffffff"; g.font = "700 28px Barlow Semi Condensed"; g.fillText("MAIN TV", 56, 49);
@@ -1121,21 +1162,21 @@ function drawTV(dt) {
   g.textAlign = "right"; g.fillText("FFM " + hhmm(), w - 40, 48); g.textAlign = "left";
   // lower third: headline + crawl
   tvHead += dt;
-  const head = HEADLINES[Math.floor(tvHead / 7) % HEADLINES.length];
+  const hl = headlines(), head = hl[Math.floor(tvHead / 8) % hl.length].title;
   g.fillStyle = "#ffffff"; g.fillRect(0, 410, w, 70);
   g.fillStyle = "#1f6fff"; g.fillRect(0, 410, 14, 70);
-  g.fillStyle = "#06122a"; g.font = "700 36px Barlow Semi Condensed"; g.fillText(head.toUpperCase(), 34, 458);
+  g.fillStyle = "#06122a"; g.font = "700 36px Barlow Semi Condensed"; let ht = head.toUpperCase(); while (g.measureText(ht).width > w - 60 && ht.length > 10) ht = ht.slice(0, -2); g.fillText(ht === head.toUpperCase() ? ht : ht.trimEnd() + "…", 34, 458);
   g.fillStyle = "#0a1c3d"; g.fillRect(0, 480, w, 56);
   tvCrawl = (tvCrawl + dt * 90) % 2400;
   g.font = "500 30px Barlow Semi Condensed";
   let x = w - tvCrawl;
   for (let r = 0; r < 2; r++) for (const s of mkt.syms) {
-    const c = (s.p / s.open - 1) * 100, t = `${s.s} ${de(s.p)}`, ct = ` ${c >= 0 ? "▲" : "▼"}${de(Math.abs(c))}   `;
+    const c = chgOf(s), t = `${s.s} ${de(s.p)}`, ct = ` ${c >= 0 ? "▲" : "▼"}${de(Math.abs(c))}   `;
     g.fillStyle = "#ffffff"; g.fillText(t, x, 518); x += g.measureText(t).width;
     g.fillStyle = c >= 0 ? UPC : DNC; g.fillText(ct, x, 518); x += g.measureText(ct).width;
   }
   g.fillStyle = "#020815"; g.fillRect(0, 536, w, 40);
-  g.fillStyle = "#8c8c8c"; g.font = "500 22px Barlow Semi Condensed"; g.fillText("A fictional channel. No real prices are shown on this floor.", 40, 563);
+  g.fillStyle = "#8c8c8c"; g.font = "500 22px Barlow Semi Condensed"; g.fillText("MAIN TV · Märkte aus Frankfurt · Kurse verzögert", 40, 563);
   tv.tex.needsUpdate = true;
 }
 
@@ -1650,7 +1691,7 @@ function drawScreen() {
   sx.font = TF(24, 600);
   const typed = term.buf.toUpperCase();
   sx.fillStyle = typed ? WHT : "#5c5c5c";
-  sx.fillText(typed || "TYPE ABOUT, PROJECTS, WRITING, CONTACT OR HELP", 32, 27);
+  sx.fillText(typed || "TYPE ABOUT, PROJECTS, PUBLICATIONS, CONTACT, DAX OR HELP", 32, 27);
   if (term.blink) { sx.fillStyle = YEL; sx.fillRect(32 + (typed ? sx.measureText(typed).width + 3 : 0), 25, 13, 30); }
   const gw = sx.measureText("<GO>").width + 20;
   sx.fillStyle = "#1f8a3e"; sx.fillRect(SW - 20 - gw, 18, gw, 44);
@@ -1662,7 +1703,7 @@ function drawScreen() {
   sx.font = TF(20, 600); sx.fillStyle = "#ffffff";
   const title = term.page === "home" ? "MAIN MENU" : CONTENT[term.page].title.toUpperCase();
   sx.fillText(`${SITE.toUpperCase()}  ·  ${title}`, 30, 77);
-  const c = idxChg(), q = `FFM40 ${de(mkt.idx, 1)} ${c >= 0 ? "+" : ""}${de(c)}%`, tm = hhmm();
+  const c = idxChg(), q = `DAX ${de(mkt.idx, 1)} ${sign(c)}%`, tm = hhmm();
   const tw = sx.measureText(tm).width;
   sx.fillStyle = "#ffffff"; sx.fillText(tm, SW - 30 - tw, 77);
   sx.fillStyle = c >= 0 ? UPC : DNC; sx.fillText(q, SW - 54 - tw - sx.measureText(q).width, 77);
@@ -1705,6 +1746,11 @@ function drawScreen() {
     sx.fillStyle = AMB; sx.fillRect(left, y, maxW, 2); y += 18;
     let n = 0;
     for (const b of pc.blocks) {
+      if (b.type === "h") {  // a section heading: white on the blue bar colour, numbering restarts
+        y += 6; sx.fillStyle = BLU; sx.fillRect(left, y - 4, maxW, 34);
+        sx.fillStyle = "#ffffff"; sx.font = TF(20, 700); sx.fillText(b.text.toUpperCase(), left + 10, y + 1);
+        y += 44; n = 0; continue;
+      }
       const indent = b.type === "li" ? 48 : 0;
       if (b.type === "li") { n++; sx.fillStyle = WHT; sx.font = TF(22, 600); sx.fillText(n + ")", left, y); }
       sx.font = TF(22);
@@ -1731,7 +1777,7 @@ function drawScreen() {
   // status line
   sx.fillStyle = "#151515"; sx.fillRect(20, SH - 52, SW - 40, 34);
   sx.font = TF(17); sx.fillStyle = AMB; sx.fillText(term.msg.toUpperCase().slice(0, 64), 30, SH - 45);
-  sx.fillStyle = "#8c8c8c"; const r = "SIMULATED DATA"; sx.fillText(r, SW - 30 - sx.measureText(r).width, SH - 45);
+  sx.fillStyle = "#8c8c8c"; const r = "QUOTES " + hhmm(mkt.updated) + " DELAYED"; sx.fillText(r, SW - 30 - sx.measureText(r).width, SH - 45);
 
   term.hits = hits;
   screenTex.needsUpdate = true;
@@ -1761,21 +1807,23 @@ function runCmd() {
   if (PAGES.includes(cmd)) return go(cmd);
   const say = (m) => (term.msg = m);
   const sym = mkt.syms.find((s) => s.s.toLowerCase() === cmd);
-  if (sym) { const c = (sym.p / sym.open - 1) * 100; say(`${sym.s} ${de(sym.p)} ${c >= 0 ? "+" : ""}${de(c)}%  (simulated)`); drawScreen(); return; }
+  if (sym) { say(`${sym.s} ${sym.name} ${de(sym.p)} EUR ${sign(chgOf(sym))}%  ${hhmm(mkt.updated)}`); drawScreen(); return; }
   switch (cmd) {
-    case "help": case "?": say("ABOUT PROJECTS WRITING CONTACT HOME LAMP SOUND SIP FFM40 TV WINDOW BADGE CLOCK EXIT"); break;
+    case "help": case "?": say("ABOUT PROJECTS PUBLICATIONS CONTACT HOME DAX SAP… TV WINDOW BADGE CLOCK EXIT"); break;
     case "home": case "cls": case "clear": go("home"); break;
     case "lamp": if (mode === "3d") toggleLamp(); break;
     case "sound": case "floor": case "squawk": setSound(!soundOn); break;
     case "sip": case "coffee": if (mode === "3d") sip(); break;
-    case "ffm40": case "index": say(`FFM40 ${de(mkt.idx, 1)}  ${idxChg() >= 0 ? "+" : ""}${de(idxChg())}%  (simulated)`); break;
+    case "dax": case "index": say(`DAX ${de(mkt.idx, 1)}  ${sign(idxChg())}%  ${hhmm(mkt.updated)}`); break;
+    case "writing": case "pubs": case "papers": go("publications"); break;
+    case "movers": { const s = [...mkt.syms].sort((a, b) => chgOf(b) - chgOf(a)); say(`TOP ${s[0].s} ${sign(chgOf(s[0]))}%  FLOP ${s[s.length - 1].s} ${sign(chgOf(s[s.length - 1]))}%`); break; }
     case "tv": if (mode === "3d") setView("tv"); break;
     case "window": case "rain": if (mode === "3d") setView("window"); break;
     case "date": case "time": say(new Date().toString().slice(0, 24)); break;
     case "badge": case "ausweis": if (mode === "3d") setView("badge"); break;
     case "clock": case "world": say(ZONES.map((z) => z.n + " " + z.f.format(new Date()).slice(0, 5)).join("  ")); break;
     case "exit": case "quit": setView("room"); break;
-    case "ls": case "dir": say("Tickers: " + mkt.syms.map((s) => s.s).join(" ")); break;
+    case "ls": case "dir": say("DAX " + mkt.syms.map((s) => s.s).join(" ")); break;
     default: say(`'${cmd}' is not a command. Type help.`);
   }
   drawScreen();
@@ -1979,13 +2027,13 @@ function setView(v, page) {
     view = "badge"; controls.enabled = false;
     const c = badge.card.position;
     moveCam(c.clone().add(new THREE.Vector3(0.02, 0.17, 0.07)), c.clone(), 1.1);
-    toast(null, "Betriebsausweis · topoftheblock · Handel / Trading · 45. OG · valid until 12/2027");
+    toast(null, "Betriebsausweis · Christian Block · Software Engineering · 45. OG · valid until 12/2027");
   } else if (v === "tv") {
     view = "tv"; controls.enabled = false;
     const n = new THREE.Vector3(Math.sin(tv.g.rotation.y), 0, Math.cos(tv.g.rotation.y));
     const d = Math.max(1.05, 0.75 / camera.aspect / Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2));
     moveCam(tv.g.position.clone().addScaledVector(n, d).add(new THREE.Vector3(0, -0.05, 0)), tv.g.position.clone(), 1.2);
-    toast(null, "MAIN TV is a made-up channel. Every price on this floor is simulated.");
+    toast(null, "MAIN TV: DAX and the day’s market headlines from Frankfurt.");
   } else {
     view = "room";
     moveCam(ROOM_POS, ROOM_TARGET, 1.0, () => { if (view === "room") controls.enabled = true; });
@@ -2099,7 +2147,7 @@ function loop() {
   if (blinkT > 0.5) { blinkT = 0; term.blink = !term.blink; drawScreen(); }
 
   mktT += dt;
-  if (mktT > 0.4) { mktT = 0; tickMarket(); drawMarkets(false); }
+  if (mktT > 2) { mktT = 0; drawMarkets(false); for (const x of mkt.syms) x.flash = 0; }
   tickerT += dt;
   if (tickerT > 3) { tickerT = 0; drawTicker(); }
   ticker.offset.x = (t * 0.03) % 1;
