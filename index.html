@@ -94,13 +94,6 @@ button { font: inherit; }
 /* the terminal on its own, full screen, for browsers that can't draw the 3D floor */
 #term2d { position: absolute; left: 50%; top: calc(50% + 26px); transform: translate(-50%, -50%); width: min(100vw, calc((100vh - 60px) * 4 / 3)); height: auto; cursor: pointer; touch-action: none; }
 
-/* the music player: YouTube's own player, kept visible while it plays */
-#music { right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(var(--lb, 0px) + 12px + env(safe-area-inset-bottom, 0px)); flex-direction: column; align-items: stretch; gap: 0; width: 200px; background: #000; border: 1px solid #262626; }
-#music .mbar { display: flex; justify-content: space-between; gap: 6px; background: var(--blue); color: #fff; font-size: 9px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 2px 5px; line-height: 1.3; }
-#music .mt { color: var(--white); font-weight: 500; text-transform: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#music iframe, #yt { display: block; width: 200px; height: 200px; border: 0; }   /* YouTube's minimum player size */
-#app:has(#music:not([hidden])) #term .tbody { padding-bottom: calc(232px + env(safe-area-inset-bottom, 0px)); }
-
 /* On phones the 3D monitor is too small to read: the same terminal page, full screen, in real type */
 #term { position: fixed; z-index: 4; left: 0; right: 0; bottom: 0; top: var(--term-top, 64px); display: flex; flex-direction: column; background: #000; border-top: 1px solid #222; font-size: 14px; line-height: 1.5; color: var(--amber); }
 #term[hidden] { display: none; }
@@ -158,11 +151,6 @@ button { font: inherit; }
       <button id="enter" hidden disabled>Enter</button>
     </div>
   </div>
-</div>
-
-<div class="hud" id="music" hidden aria-label="Music">
-  <div class="mbar"><span class="mt">B. Fleischmann · Mikro_Kosmos</span></div>
-  <div id="yt"></div>
 </div>
 
 <div id="term" hidden role="region" aria-live="polite">
@@ -312,7 +300,6 @@ document.querySelectorAll("#flat section[data-page]").forEach((sec) => {
 /* ================= the readable terminal, for small screens ================= */
 const termPanel = $("#term");
 $("#app").appendChild(termPanel);
-$("#app").appendChild($("#music"));   // inside #app, so the HUD keys and Cancel stay on top of it
 const smallScreen = () => matchMedia("(max-width: 760px), (max-height: 520px)").matches;
 let termWait = null;
 function showTermPanel(page) {
@@ -2892,7 +2879,7 @@ function ctx() {
       const g = actx.createGain(); g.gain.value = gain;
       s.connect(f1).connect(f2).connect(g).connect(amb.out); s.start();
     };
-    bed(30, 320, 0.16);   // the air conditioning; the music plays instead of the rain
+    bed(30, 320, 0.16); bed(1200, 7000, 0.035);
     for (let i = 0; i < 14; i++) amb.voices.push({ f0: 90 + Math.random() * 140, pan: Math.random() * 2 - 1, gain: 0.012 + Math.random() * 0.03, next: 0, left: 0 });
   }
   if (actx.state === "suspended") actx.resume();
@@ -2983,7 +2970,7 @@ function setSound(on) {
     const a = ctx();
     amb.out.gain.cancelScheduledValues(a.currentTime);
     amb.out.gain.setValueAtTime(0, a.currentTime);
-    amb.out.gain.setTargetAtTime(0.45, a.currentTime, 0.6);   // the floor stays under the music
+    amb.out.gain.setTargetAtTime(0.9, a.currentTime, 0.6);
     amb.timer = setInterval(scheduleFloor, 60);
   } else if (actx) {
     // silence straight away and stop the audio clock, so nothing already scheduled can still play
@@ -2991,41 +2978,12 @@ function setSound(on) {
     amb.out.gain.setValueAtTime(0, actx.currentTime);
     actx.suspend();
   }
-  try { music(on); } catch (e) { console.warn("No music:", e); }
   if (squawk.led) squawk.led.material.color.setRGB(on ? 0.4 : 0.05, on ? 2.6 : 0.2, on ? 0.6 : 0.08);
-  if (roomReady) { term.msg = on ? "Sound on: B. Fleischmann, Mikro_Kosmos." : "Sound off."; drawScreen(); }
+  if (roomReady) { term.msg = on ? "Floor sound on." : "Floor sound off."; drawScreen(); }
 }
 
-// B. Fleischmann, "Mikro_Kosmos", through YouTube's own player. Browsers hold back sound until the first click or key.
-const YT_ID = "9F3yYsL6gb8";
-let ytPlayer = null, ytReady = false, ytLoading = false, ytNudged = false;
-function music(on) {
-  const box = $("#music");
-  if (!on) { if (ytReady) ytPlayer.pauseVideo(); box.hidden = true; return; }
-  box.hidden = false;
-  if (ytReady) { ytPlayer.playVideo(); return; }
-  if (ytLoading) return;
-  ytLoading = true;
-  window.onYouTubeIframeAPIReady = () => {
-    ytPlayer = new YT.Player("yt", {
-      videoId: YT_ID, width: 200, height: 200,
-      playerVars: { autoplay: 1, playsinline: 1, rel: 0, controls: 1 },
-      events: {
-        onStateChange: (e) => { if (e.data === 0) { e.target.seekTo(0); e.target.playVideo(); } },   // play it again from the start
-        onError: () => { box.hidden = true; },   // the floor sound plays on its own if YouTube refuses
-        onReady: (e) => { ytReady = true; e.target.setVolume(60); if (soundOn) e.target.playVideo(); else box.hidden = true; } },
-    });
-  };
-  const sc = document.createElement("script");
-  sc.src = "https://www.youtube.com/iframe_api";
-  sc.onerror = () => { box.hidden = true; };   // YouTube blocked or offline: the floor sound plays on its own
-  document.head.appendChild(sc);
-}
 $("#sound").addEventListener("click", () => setSound(!soundOn));
-const unlockAudio = () => {
-  if (soundOn && actx && actx.state === "suspended") actx.resume();
-  if (soundOn && ytReady && !ytNudged) { ytNudged = true; if (ytPlayer.getPlayerState() !== 1) ytPlayer.playVideo(); }   // the first click starts the song
-};
+const unlockAudio = () => { if (soundOn && actx && actx.state === "suspended") actx.resume(); };
 ["pointerdown", "keydown", "touchend"].forEach((ev) => addEventListener(ev, unlockAudio, { capture: true, passive: true }));
 
 /* ================= views & camera ================= */
