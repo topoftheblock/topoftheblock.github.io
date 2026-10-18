@@ -94,6 +94,13 @@ button { font: inherit; }
 /* the terminal on its own, full screen, for browsers that can't draw the 3D floor */
 #term2d { position: absolute; left: 50%; top: calc(50% + 26px); transform: translate(-50%, -50%); width: min(100vw, calc((100vh - 60px) * 4 / 3)); height: auto; cursor: pointer; touch-action: none; }
 
+/* the music player: YouTube's own player, kept visible while it plays */
+#music { right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(var(--lb, 0px) + 12px + env(safe-area-inset-bottom, 0px)); flex-direction: column; align-items: stretch; gap: 0; width: 300px; max-width: calc(100vw - 32px); background: #000; border: 1px solid #262626; }
+#music .mbar { display: flex; justify-content: space-between; gap: 6px; background: var(--blue); color: #fff; font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 3px 6px; }
+#music .mt { color: var(--white); font-weight: 500; text-transform: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#music iframe, #yt { display: block; width: 300px; height: 200px; max-width: 100%; border: 0; }   /* YouTube refuses to play in a smaller player */
+#app:has(#music:not([hidden])) #term .tbody { padding-bottom: calc(250px + env(safe-area-inset-bottom, 0px)); }
+
 /* On phones the 3D monitor is too small to read: the same terminal page, full screen, in real type */
 #term { position: fixed; z-index: 4; left: 0; right: 0; bottom: 0; top: var(--term-top, 64px); display: flex; flex-direction: column; background: #000; border-top: 1px solid #222; font-size: 14px; line-height: 1.5; color: var(--amber); }
 #term[hidden] { display: none; }
@@ -151,6 +158,11 @@ button { font: inherit; }
       <button id="enter" hidden disabled>Enter</button>
     </div>
   </div>
+</div>
+
+<div class="hud" id="music" hidden aria-label="Music">
+  <div class="mbar"><span>Music</span><span class="mt">B. Fleischmann · Mikro_Kosmos</span></div>
+  <div id="yt"></div>
 </div>
 
 <div id="term" hidden role="region" aria-live="polite">
@@ -268,6 +280,7 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { GTAOPass } from "three/addons/postprocessing/GTAOPass.js";
+import { MarchingCubes } from "three/addons/objects/MarchingCubes.js";
 import { SMAAPass } from "three/addons/postprocessing/SMAAPass.js";
 
 window.__ndStarted = true;
@@ -298,7 +311,8 @@ document.querySelectorAll("#flat section[data-page]").forEach((sec) => {
 
 /* ================= the readable terminal, for small screens ================= */
 const termPanel = $("#term");
-$("#app").appendChild(termPanel);   // inside #app, so the HUD keys and Cancel stay on top of it
+$("#app").appendChild(termPanel);
+$("#app").appendChild($("#music"));   // inside #app, so the HUD keys and Cancel stay on top of it
 const smallScreen = () => matchMedia("(max-width: 760px), (max-height: 520px)").matches;
 let termWait = null;
 function showTermPanel(page) {
@@ -1372,41 +1386,70 @@ function buildDeskExtras() {
 
   /* --- bull and bear in bronze, facing off on a black stone plinth, like the pair outside the Börse --- */
   const bb = new THREE.Group(); bb.position.set(0.43, DESK_Y, -0.25); bb.rotation.y = -0.25; scene.add(bb);
-  const bronze = new THREE.MeshPhysicalMaterial({ color: "#b07a42", roughness: 0.38, metalness: 0.65, clearcoat: 0.3, clearcoatRoughness: 0.4 });
   mesh(new RoundedBoxGeometry(0.36, 0.022, 0.095, 2, 0.004), new THREE.MeshPhysicalMaterial({ color: "#101114", roughness: 0.25, clearcoat: 1, clearcoatRoughness: 0.1 }), 0, 0.011, 0, bb);
   const plate = canvasTex(512, 64, (g, w, h) => { g.fillStyle = "#b8963c"; g.fillRect(0, 0, w, h); g.fillStyle = "#2a1d08"; g.font = "600 30px IBM Plex Mono"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("BULLE & BÄR · BÖRSE FRANKFURT", w / 2, h / 2 + 2); });
   mesh(new THREE.PlaneGeometry(0.12, 0.014), std({ map: plate, roughness: 0.3, metalness: 0.8, ...ONTOP }), 0, 0.011, 0.0478, bb);
-  const blob = (g, r, sx, sy, sz, x, y, z) => { const m = mesh(new THREE.SphereGeometry(r, 24, 16), bronze, x, y, z, g); m.scale.set(sx, sy, sz); return m; };
-  const limb = (g, r, len, x, y, z, rz = 0, rx = 0) => { const m = mesh(new THREE.CapsuleGeometry(r, len, 4, 10), bronze, x, y, z, g); m.rotation.set(rx, 0, rz); return m; };
-  const tube = (g, pts, r) => mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map((v) => new THREE.Vector3(...v))), 20, r, 6), bronze, 0, 0, 0, g);
-  // the bull, head down and charging, facing +x
-  const bull = new THREE.Group(); bull.position.set(-0.095, 0.022, 0); bull.scale.setScalar(0.9); bb.add(bull);
-  limb(bull, 0.03, 0.07, 0, 0.07, 0, Math.PI / 2);                     // a long, deep body
-  blob(bull, 0.037, 1, 1.05, 0.95, 0.035, 0.077, 0);                   // the muscle over the shoulders
-  limb(bull, 0.016, 0.03, 0.078, 0.052, 0, -1.0);                      // the head, lowered
-  blob(bull, 0.016, 1, 0.85, 1, 0.096, 0.034, 0);                      // muzzle
-  for (const sz of [-1, 1]) {
-    tube(bull, [[0.075, 0.068, sz * 0.012], [0.078, 0.077, sz * 0.04], [0.096, 0.09, sz * 0.048], [0.116, 0.094, sz * 0.034]], 0.0042);   // horns: out, then forward and up
-    blob(bull, 0.008, 1.4, 0.55, 1, 0.07, 0.07, sz * 0.026);            // ears
-    limb(bull, 0.009, 0.04, 0.05, 0.03, sz * 0.017, 0.3);               // front legs, braced
-    limb(bull, 0.0095, 0.04, -0.05, 0.03, sz * 0.017, -0.35);           // hind legs, pushing off
-  }
-  tube(bull, [[-0.095, 0.075, 0], [-0.115, 0.086, 0.005], [-0.126, 0.07, 0.01], [-0.12, 0.05, 0.012]], 0.0022);   // tail, lashing
-  // the bear, bulky and darker, one paw raised at the bull
-  const dark = bronze.clone(); dark.color.set("#5e3f26");
-  const bear = new THREE.Group(); bear.position.set(0.105, 0.022, 0); bear.rotation.y = Math.PI; bear.scale.setScalar(0.9); bb.add(bear);
-  const bblob = (...a) => (blob(bear, ...a).material = dark), blimb = (...a) => (limb(bear, ...a).material = dark);
-  blimb(0.038, 0.05, 0, 0.072, 0, Math.PI / 2);                         // body
-  bblob(0.036, 1, 1, 1, 0.03, 0.09, 0);                                 // shoulder hump
-  bblob(0.027, 1, 1, 1, 0.078, 0.086, 0);                               // head
-  blimb(0.011, 0.016, 0.106, 0.079, 0, Math.PI / 2);                    // snout
-  for (const sz of [-1, 1]) {
-    bblob(0.009, 1, 1, 0.55, 0.072, 0.11, sz * 0.017);                  // round ears
-    blimb(0.014, 0.03, -0.035, 0.03, sz * 0.022);                       // hind legs
-  }
-  blimb(0.014, 0.03, 0.04, 0.03, -0.022);                               // one front paw on the ground
-  blimb(0.012, 0.034, 0.078, 0.064, 0.026, -1.15);                      // the other raised at the bull
-  bblob(0.008, 1, 1, 1, -0.07, 0.08, 0);                                // stub of a tail
+  // Each figure is one sculpted surface: a distance field of rounded parts blended smoothly into each other
+  // (shoulders into neck, legs into body), turned into a mesh with marching cubes, like a single casting.
+  const V = (x, y, z) => [x, y, z];
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], len = (a) => Math.sqrt(dot(a, a));
+  const cone = (a, b, ra, rb) => (p) => { const pa = sub(p, a), ba = sub(b, a), h = Math.max(0, Math.min(1, dot(pa, ba) / dot(ba, ba))); return len([pa[0] - ba[0] * h, pa[1] - ba[1] * h, pa[2] - ba[2] * h]) - (ra + (rb - ra) * h); };
+  const ell = (c, r) => (p) => { const q = sub(p, c), k0 = len([q[0] / r[0], q[1] / r[1], q[2] / r[2]]), k1 = len([q[0] / (r[0] * r[0]), q[1] / (r[1] * r[1]), q[2] / (r[2] * r[2])]); return k1 > 0 ? (k0 * (k0 - 1)) / k1 : -Math.min(...r); };
+  const smin = (a, b, k) => { const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k * 0.25; };
+  const mirror = (f) => (p) => f([p[0], p[1], Math.abs(p[2])]);   // left and right side from one definition
+  const sculpt = (parts, mat, res) => {
+    const mc = new MarchingCubes(res, mat, false, false, 200000);
+    const half = res / 2;
+    for (let z = 0; z < res; z++) for (let y = 0; y < res; y++) for (let x = 0; x < res; x++) {
+      const p = [(x - half) / half, (y - half) / half, (z - half) / half];
+      let d = 1e9;
+      for (const [f, k] of parts) d = k ? smin(d, f(p), k) : Math.min(d, f(p));
+      mc.field[x + y * res + z * res * res] = 80 - d * 900;
+    }
+    mc.isolation = 80;
+    mc.update();
+    mc.castShadow = true; mc.frustumCulled = false;   // no self-shadowing: at this size it only shows as acne
+    return mc;
+  };
+  const patina = new THREE.MeshPhysicalMaterial({ color: "#8a5a30", roughness: 0.42, metalness: 0.75, clearcoat: 0.2, clearcoatRoughness: 0.5 });
+  const patinaDark = new THREE.MeshPhysicalMaterial({ color: "#5a3a20", roughness: 0.48, metalness: 0.7, clearcoat: 0.2, clearcoatRoughness: 0.5 });
+  // the bull: head down, horns forward, shoulders bunched, front legs braced and hind legs driving, facing +x
+  const bullParts = [
+    [ell(V(0.32, 0.22, 0), [0.34, 0.33, 0.27]), 0],                               // shoulder hump and chest
+    [cone(V(-0.42, 0.08, 0), V(0.25, 0.1, 0), 0.25, 0.32), 0.18],                 // barrel of the body
+    [ell(V(-0.05, -0.08, 0), [0.45, 0.22, 0.24]), 0.16],                          // belly
+    [ell(V(-0.48, 0.1, 0), [0.22, 0.24, 0.24]), 0.14],                            // haunches
+    [cone(V(0.48, 0.12, 0), V(0.72, -0.18, 0), 0.24, 0.15), 0.12],                // neck, lowered
+    [cone(V(0.72, -0.18, 0), V(0.86, -0.42, 0), 0.15, 0.1), 0.08],                // face down to the muzzle
+    [ell(V(0.87, -0.45, 0), [0.1, 0.08, 0.11]), 0.05],                            // muzzle
+    [mirror(cone(V(0.7, -0.06, 0.1), V(0.76, -0.02, 0.28), 0.055, 0.04)), 0.04], // horns: out to the side …
+    [mirror(cone(V(0.76, -0.02, 0.28), V(0.95, 0.06, 0.3), 0.04, 0.015)), 0.02],  // … then forward and up
+    [mirror(ell(V(0.66, 0.0, 0.16), [0.06, 0.035, 0.05])), 0.03],                 // ears
+    [mirror(cone(V(0.42, -0.08, 0.13), V(0.55, -0.55, 0.15), 0.1, 0.065)), 0.08], // forearms, braced forward
+    [mirror(cone(V(0.55, -0.55, 0.15), V(0.6, -0.86, 0.15), 0.065, 0.05)), 0.03],
+    [mirror(cone(V(-0.45, -0.02, 0.14), V(-0.5, -0.45, 0.15), 0.14, 0.07)), 0.1], // thighs
+    [mirror(cone(V(-0.5, -0.45, 0.15), V(-0.66, -0.86, 0.15), 0.065, 0.05)), 0.03], // hind legs pushed back
+    [cone(V(-0.66, 0.14, 0), V(-0.86, -0.25, 0.03), 0.03, 0.02), 0.04],          // tail
+  ];
+  // the bear: low and heavy, head swinging down, one forepaw raised to strike, facing +x
+  const bearParts = [
+    [ell(V(-0.08, 0.0, 0), [0.58, 0.34, 0.33]), 0],                               // body
+    [ell(V(0.22, 0.2, 0), [0.32, 0.27, 0.32]), 0.2],                              // shoulder hump
+    [ell(V(-0.48, 0.04, 0), [0.26, 0.3, 0.3]), 0.18],                             // rump
+    [cone(V(0.4, 0.12, 0), V(0.62, -0.02, 0), 0.22, 0.17), 0.12],                 // neck
+    [ell(V(0.66, -0.04, 0), [0.19, 0.17, 0.17]), 0.08],                           // head
+    [cone(V(0.72, -0.08, 0), V(0.9, -0.16, 0), 0.1, 0.06), 0.06],                 // snout
+    [mirror(ell(V(0.6, 0.12, 0.12), [0.045, 0.05, 0.03])), 0.03],                 // round ears
+    [cone(V(0.32, -0.14, -0.18), V(0.4, -0.86, -0.2), 0.12, 0.1), 0.1],           // forepaw on the ground
+    [cone(V(0.32, -0.1, 0.18), V(0.66, -0.34, 0.24), 0.11, 0.09), 0.1],           // the other forepaw, raised
+    [ell(V(0.7, -0.38, 0.25), [0.09, 0.06, 0.08]), 0.05],                         // the raised paw
+    [mirror(cone(V(-0.42, -0.1, 0.18), V(-0.46, -0.86, 0.2), 0.15, 0.11)), 0.12], // hind legs
+    [mirror(ell(V(-0.43, -0.86, 0.2), [0.13, 0.05, 0.1])), 0.05],                 // hind paws
+    [ell(V(0.42, -0.86, -0.2), [0.12, 0.05, 0.1]), 0.05],                         // the standing forepaw
+  ];
+  const RES = LOW ? 44 : 64;
+  const bull = sculpt(bullParts, patina, RES); bull.position.set(-0.088, 0.022 + 0.0645, 0); bull.scale.setScalar(0.075); bb.add(bull);
+  const bear = sculpt(bearParts, patinaDark, RES); bear.position.set(0.092, 0.022 + 0.0645, 0); bear.rotation.y = Math.PI; bear.scale.setScalar(0.075); bb.add(bear);
   interactive(bb, () => "Bull and bear", () => toast(null, "Bulle und Bär: the pair from outside the Frankfurt Börse, in small."));
 
   /* --- a printed DAX price list, left of the keyboard, with a pen on it --- */
@@ -2849,7 +2892,7 @@ function ctx() {
       const g = actx.createGain(); g.gain.value = gain;
       s.connect(f1).connect(f2).connect(g).connect(amb.out); s.start();
     };
-    bed(30, 320, 0.16); bed(1200, 7000, 0.035);
+    bed(30, 320, 0.16);   // the air conditioning; the music plays instead of the rain
     for (let i = 0; i < 14; i++) amb.voices.push({ f0: 90 + Math.random() * 140, pan: Math.random() * 2 - 1, gain: 0.012 + Math.random() * 0.03, next: 0, left: 0 });
   }
   if (actx.state === "suspended") actx.resume();
@@ -2940,7 +2983,7 @@ function setSound(on) {
     const a = ctx();
     amb.out.gain.cancelScheduledValues(a.currentTime);
     amb.out.gain.setValueAtTime(0, a.currentTime);
-    amb.out.gain.setTargetAtTime(0.9, a.currentTime, 0.6);
+    amb.out.gain.setTargetAtTime(0.45, a.currentTime, 0.6);   // the floor stays under the music
     amb.timer = setInterval(scheduleFloor, 60);
   } else if (actx) {
     // silence straight away and stop the audio clock, so nothing already scheduled can still play
@@ -2948,11 +2991,41 @@ function setSound(on) {
     amb.out.gain.setValueAtTime(0, actx.currentTime);
     actx.suspend();
   }
+  try { music(on); } catch (e) { console.warn("No music:", e); }
   if (squawk.led) squawk.led.material.color.setRGB(on ? 0.4 : 0.05, on ? 2.6 : 0.2, on ? 0.6 : 0.08);
-  if (roomReady) { term.msg = on ? "Floor sound on." : "Floor sound off."; drawScreen(); }
+  if (roomReady) { term.msg = on ? "Sound on: B. Fleischmann, Mikro_Kosmos." : "Sound off."; drawScreen(); }
+}
+
+// B. Fleischmann, "Mikro_Kosmos", through YouTube's own player. Browsers hold back sound until the first click or key.
+const YT_ID = "9F3yYsL6gb8";
+let ytPlayer = null, ytReady = false, ytLoading = false, ytNudged = false;
+function music(on) {
+  const box = $("#music");
+  if (!on) { if (ytReady) ytPlayer.pauseVideo(); box.hidden = true; return; }
+  box.hidden = false;
+  if (ytReady) { ytPlayer.playVideo(); return; }
+  if (ytLoading) return;
+  ytLoading = true;
+  window.onYouTubeIframeAPIReady = () => {
+    ytPlayer = new YT.Player("yt", {
+      videoId: YT_ID, width: 300, height: 200,
+      playerVars: { autoplay: 1, playsinline: 1, rel: 0, controls: 1 },
+      events: {
+        onStateChange: (e) => { if (e.data === 0) { e.target.seekTo(0); e.target.playVideo(); } },   // play it again from the start
+        onError: () => { box.hidden = true; },   // the floor sound plays on its own if YouTube refuses
+        onReady: (e) => { ytReady = true; e.target.setVolume(60); if (soundOn) e.target.playVideo(); else box.hidden = true; } },
+    });
+  };
+  const sc = document.createElement("script");
+  sc.src = "https://www.youtube.com/iframe_api";
+  sc.onerror = () => { box.hidden = true; };   // YouTube blocked or offline: the floor sound plays on its own
+  document.head.appendChild(sc);
 }
 $("#sound").addEventListener("click", () => setSound(!soundOn));
-const unlockAudio = () => { if (soundOn && actx && actx.state === "suspended") actx.resume(); };
+const unlockAudio = () => {
+  if (soundOn && actx && actx.state === "suspended") actx.resume();
+  if (soundOn && ytReady && !ytNudged) { ytNudged = true; if (ytPlayer.getPlayerState() !== 1) ytPlayer.playVideo(); }   // the first click starts the song
+};
 ["pointerdown", "keydown", "touchend"].forEach((ev) => addEventListener(ev, unlockAudio, { capture: true, passive: true }));
 
 /* ================= views & camera ================= */
