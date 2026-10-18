@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Night Desk</title>
+<title>Christian Block · Personal Homepage</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="Christian Block, AI and data engineer in Frankfurt. An empty trading floor at night on the 45th floor of a tower over the Roßmarkt; the terminal on the desk holds the site.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -40,7 +40,10 @@ button { font: inherit; }
 #hud-top > * { pointer-events: auto; }
 .brand { display: flex; gap: 8px; align-items: center; font-weight: 600; font-size: 12px; }
 .brand b { background: var(--amber); color: var(--black); padding: 3px 7px; }
-.brand span { color: var(--white); }
+.brand span { color: var(--white); letter-spacing: .04em; background: var(--black); padding: 3px 7px; }
+.brand span i { font-style: normal; background: var(--green); color: #fff; padding: 1px 5px; margin-left: 4px; border-radius: 2px; }
+.brand .role { color: var(--amber-dim); font-weight: 500; }
+@media (max-width: 760px) { .brand .role { display: none; } }
 .row { display: flex; gap: 4px; flex-wrap: wrap; }
 .key { border: 0; border-radius: 2px; padding: 6px 9px; cursor: pointer; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; box-shadow: inset 0 -2px 0 rgb(0 0 0 / .35); }
 .key.yel { background: var(--yellow); color: #111; }
@@ -51,7 +54,6 @@ button { font: inherit; }
 .key:hover { filter: brightness(1.12); }
 .key:disabled { opacity: .35; cursor: progress; filter: none; }
 #back { bottom: calc(var(--lb, 0px) + 12px + env(safe-area-inset-bottom, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); }
-#hint { bottom: calc(var(--lb, 0px) + 20px + env(safe-area-inset-bottom, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); color: var(--amber-dim); max-width: 52ch; text-align: right; justify-content: flex-end; pointer-events: none; }
 /* widescreen letterbox, like the film: bars only when the window is wider than it is tall */
 .lb { position: absolute; left: 0; right: 0; height: var(--lb, 0px); background: #000; z-index: 4; pointer-events: none; }
 .lb.t { top: 0; } .lb.b { bottom: 0; }
@@ -60,10 +62,17 @@ button { font: inherit; }
 #toast a { color: var(--white); overflow-wrap: anywhere; }
 #toast a:not([href]) { color: var(--amber); }
 #toast button { background: none; border: 0; color: var(--muted); cursor: pointer; padding: 2px 4px; }
+/* the screen recording, played when you click a tower from the glass */
+#film { position: absolute; inset: 0; z-index: 8; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; background: rgb(0 0 0 / .86); }
+#film[hidden] { display: none; }
+#film video { display: block; width: min(100%, 1280px); max-height: calc(100% - 60px); background: #000; border-top: 3px solid var(--blue); }
 
 /* ---------- login screen: a terminal sign-on, full screen ---------- */
 #boot { position: absolute; inset: 0; z-index: 10; background: var(--black); display: flex; flex-direction: column; transition: opacity .6s ease; }
 #boot.out { opacity: 0; pointer-events: none; }
+#boot[hidden] { display: none; }
+#gl { transition: opacity .8s ease; }
+#app:not(.ready) #gl { opacity: 0; }
 .bb-bar { display: flex; justify-content: space-between; gap: 12px; padding: 6px max(16px, env(safe-area-inset-right, 0px)) 6px max(16px, env(safe-area-inset-left, 0px)); padding-top: calc(6px + env(safe-area-inset-top, 0px)); font-size: 12px; font-weight: 600; }
 .bb-bar.top { background: var(--blue); color: #fff; }
 .bb-bar.keys { background: #111; color: var(--amber); justify-content: flex-start; flex-wrap: wrap; padding-top: 6px; }
@@ -103,14 +112,9 @@ button { font: inherit; }
 #term a { color: var(--yellow); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
 #term .tbar span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 430px) { #term .tbar .px { display: none; } }
-#app:has(#term:not([hidden])) #osm { display: none; }
 #term .tstat { display: none; justify-content: space-between; padding: 5px 12px; background: #111; color: #8c8c8c; font-size: 10px; letter-spacing: .05em; }
 
-#osm { right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(var(--lb, 0px) + 4px + env(safe-area-inset-bottom, 0px)); font-size: 9px; color: #5c5c5c; text-decoration: none; }
-#osm:hover { color: var(--amber); }
-
 @media (max-width: 560px) {
-  #hint { display: none; }
   .key { padding: 5px 6px; font-size: 10px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -126,7 +130,7 @@ button { font: inherit; }
   <div class="lb t" aria-hidden="true"></div><div class="lb b" aria-hidden="true"></div>
 
   <div class="hud" id="hud-top">
-    <div class="brand"><b>CHRISTIAN BLOCK</b></div>
+    <div class="brand"><b>CHRISTIAN BLOCK</b><span>PERSONAL HOMEPAGE <i>&lt;GO&gt;</i></span><span class="role">AI &amp; DATA ENGINEER · FRANKFURT</span></div>
     <div class="row" role="navigation" aria-label="Pages">
       <button class="key yel" data-go="about">1 About</button>
       <button class="key yel" data-go="projects">2 Projects</button>
@@ -136,12 +140,11 @@ button { font: inherit; }
     </div>
   </div>
   <button class="hud key red" id="back" hidden>Cancel · back to desk</button>
-  <a class="hud" id="osm" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">Map data © OpenStreetMap contributors</a>
-  <div class="hud" id="hint">Drag to look around the floor. Click the screens, line keys, badge, clock, or the glass to look down on the Roßmarkt. Type to use the terminal.</div>
   <div id="tip" hidden></div>
+  <div id="film" hidden role="dialog" aria-label="Screen recording"><video id="film-v" src="video/recording.mp4" poster="video/recording.jpg" preload="none" muted playsinline controls></video><button class="key red" id="film-x">Close</button></div>
   <div id="toast" hidden role="status"><a id="toast-link" href="#" target="_blank" rel="noopener"></a><button id="toast-x" aria-label="Close">✕</button></div>
 
-  <div id="boot">
+  <div id="boot" hidden>
     <div class="signon">
       <p class="mark"><b>CHRISTIAN BLOCK</b></p>
       <p class="sub">Frankfurt am Main · 45. OG</p>
@@ -220,6 +223,10 @@ button { font: inherit; }
       <ul>
         <li><a href="https://www.linkedin.com/in/christian-block97">linkedin.com/in/christian-block97</a></li>
       </ul>
+      <h3>Credits</h3>
+      <ul>
+        <li><a href="https://www.openstreetmap.org/copyright">Map data © OpenStreetMap contributors, under the Open Database License</a></li>
+      </ul>
     </section>
   </div>
 </main>
@@ -227,7 +234,12 @@ button { font: inherit; }
 <script>
 // Runs in every browser, before the 3D code: reports anything that stops the terminal from starting.
 (function () {
-  function show(m) { var l = document.getElementById("log"); if (l && !window.__ndReady) l.textContent += (l.textContent ? "\n" : "") + "ERROR  " + m; }
+  function show(m) {
+    var l = document.getElementById("log");
+    if (!l || window.__ndReady) return;
+    document.getElementById("boot").hidden = false;   // the sign-on panel only shows to report a problem
+    l.textContent += (l.textContent ? "\n" : "") + "ERROR  " + m;
+  }
   window.addEventListener("error", function (e) {
     var t = e.target;
     if (t && t !== window && t.src) show("Could not load " + t.src.replace(/^https?:\/\//, "").split("/").slice(0, 3).join("/") + ". Check the connection and reload.");
@@ -375,7 +387,6 @@ function startTerminal2D(reason) {
 }
 function show2D() {
   canvas.hidden = true;
-  $("#hint").hidden = true;
   scr.id = "term2d";
   scr.setAttribute("role", "img");
   scr.setAttribute("aria-label", "The terminal: " + PAGES.map((p) => CONTENT[p].title).join(", "));
@@ -399,12 +410,14 @@ function show2D() {
 
 enterBtn.addEventListener("click", () => {
   entered = true;
+  app.classList.add("ready");
   if (mode === "2d") show2D();
   $("#boot").classList.add("out");
   setTimeout(() => ($("#boot").hidden = true), 750);
   try { setSound(true); } catch (e) { console.warn("No sound:", e); }
   const h = location.hash.slice(1);
   if (PAGES.includes(h)) setTimeout(() => setView("screen", h), 250);
+  else if (mode === "3d") setTimeout(() => toast(null, "Christian Block's personal homepage. Press 1–4 or click the terminal to read it."), 900);
 });
 
 /* ================= three.js core ================= */
@@ -920,6 +933,7 @@ function buildRoom() {
   buildBadge(M);
   buildDeskClock();
   buildKeepsakes();
+  buildDeskExtras();
 
   /* --- light --- */
   hemi = new THREE.HemisphereLight("#6f88c8", "#1a2232", 1.0);
@@ -1060,7 +1074,7 @@ function lightLine(i) {
 
 /* ================= Goethe University mug ================= */
 function buildMug() {
-  mug.g = new THREE.Group(); mug.g.position.set(0.5, DESK_Y + 0.003, 0.06); mug.g.rotation.y = -0.3; scene.add(mug.g);   // the crest turned to the chair
+  mug.g = new THREE.Group(); mug.g.position.set(0.6, DESK_Y + 0.003, 0.04); mug.g.rotation.y = -0.3; scene.add(mug.g);   // the crest turned to the chair
   mug.rest = mug.g.position.clone();
   // The cylinder's texture starts at +z (towards the viewer) and runs round to the handle at +x (u = .25).
   // The mark sits just right of u = 0 and is drawn twice so it wraps across the seam.
@@ -1126,14 +1140,14 @@ function buildBadge(M) {
     g.font = "500 18px IBM Plex Mono"; g.fillStyle = "#6b7280"; g.fillText("Bei Fund bitte am Empfang im EG abgeben.", 325, 622);
   });
   tex.anisotropy = 16;
-  const card = new THREE.Group(); card.position.set(0.27, DESK_Y + 0.0039, 0.115); card.rotation.y = 0.12; card.scale.setScalar(1.4); scene.add(card);   // a touch larger than life, so it reads from the chair
+  const card = new THREE.Group(); card.position.set(0.42, DESK_Y + 0.0039, 0.115); card.rotation.y = 0.12; card.scale.setScalar(1.4); scene.add(card);   // a touch larger than life, so it reads from the chair
   mesh(new RoundedBoxGeometry(0.0856, 0.0016, 0.054, 2, 0.0007), new THREE.MeshPhysicalMaterial({ color: "#f4f5f7", roughness: 0.3, clearcoat: 1 }), 0, 0, 0, card);
   const face = mesh(new THREE.PlaneGeometry(0.0856, 0.054), new THREE.MeshPhysicalMaterial({ map: tex, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.06, ...ONTOP }), 0, 0.00082, 0, card);
   face.rotation.x = -Math.PI / 2;
   mesh(new THREE.BoxGeometry(0.012, 0.003, 0.012), M.metal, 0, 0.0015, -0.031, card);           // the clip
   // the lanyard, lying in a loose loop on the desk
   const pts = [[0.321, 0.094], [0.345, 0.05], [0.372, -0.005], [0.36, -0.07], [0.31, -0.1], [0.262, -0.07], [0.252, 0.0], [0.276, 0.06], [0.316, 0.09]].map(([x, z]) => new THREE.Vector3(x, 0, z));
-  const lan = mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 90, 0.0055, 6), new THREE.MeshPhysicalMaterial({ color: "#1d3c8f", roughness: 0.75, sheen: 1, sheenColor: new THREE.Color("#6f8fe0") }), -0.04, DESK_Y + 0.0044, -0.025);
+  const lan = mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 90, 0.0055, 6), new THREE.MeshPhysicalMaterial({ color: "#1d3c8f", roughness: 0.75, sheen: 1, sheenColor: new THREE.Color("#6f8fe0") }), 0.11, DESK_Y + 0.0044, -0.025);
   lan.scale.y = 0.22;
   badge.card = card;
   interactive(card, () => "Betriebsausweis: pick it up", () => setView("badge"));
@@ -1193,7 +1207,7 @@ function buildKeepsakes() {
 
   /* --- reading glasses, folded and put down left of the keyboard: thin round metal frames --- */
   {
-    const S = new THREE.Group(); S.position.set(-0.36, DESK_Y, 0.15); S.rotation.y = 0.35; scene.add(S);
+    const S = new THREE.Group(); S.position.set(-0.5, DESK_Y, 0.165); S.rotation.y = 0.35; scene.add(S);
     const F = new THREE.Group(); F.position.y = 0.012; F.rotation.x = -1.15; S.add(F);   // resting on the folded temples, lenses up
     const wire = std({ color: "#b8a27a", roughness: 0.3, metalness: 1 });   // gold-tone metal
     const lens = new THREE.MeshPhysicalMaterial({ color: "#ffffff", roughness: 0.02, transparent: true, opacity: 0.12, clearcoat: 1, clearcoatRoughness: 0.02, depthWrite: false });
@@ -1308,6 +1322,156 @@ function golfEgg() {
       });
     });
   }, 1300);
+}
+
+/* ================= more on the desk: a mouse, a desk phone, bull and bear, and a printed price list with a pen ================= */
+const paper = {}, phone = {};
+function buildDeskExtras() {
+  /* --- a wireless mouse, right of the keyboard --- */
+  const mouse = new THREE.Group(); mouse.position.set(0.31, DESK_Y + 0.003, 0.04); mouse.rotation.y = -0.08; scene.add(mouse);
+  const mouseMat = new THREE.MeshPhysicalMaterial({ color: "#121418", roughness: 0.42, clearcoat: 0.5, clearcoatRoughness: 0.4 });
+  mesh(new THREE.SphereGeometry(1, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2), mouseMat, 0, 0, 0, mouse).scale.set(0.031, 0.032, 0.056);
+  mesh(new THREE.CylinderGeometry(0.031, 0.031, 0.004, 40), std({ color: "#08090b", roughness: 0.8 }), 0, 0.002, 0, mouse).scale.z = 0.056 / 0.031;   // the dark rim it stands on
+  const wheel = mesh(new THREE.CylinderGeometry(0.0055, 0.0055, 0.004, 20), std({ color: "#3a3f48", roughness: 0.7 }), 0, 0.0295, -0.024, mouse);
+  wheel.rotation.z = Math.PI / 2;
+  mesh(new THREE.BoxGeometry(0.0008, 0.002, 0.03), std({ color: "#040506", roughness: 0.6 }), 0, 0.0305, -0.035, mouse).rotation.x = -0.45;   // the gap between the buttons
+  interactive(mouse, () => "Mouse: use the terminal", () => setView("screen"));
+
+  /* --- a desk phone at the left end: handset in its cradle, keypad, curly cord --- */
+  const ph = new THREE.Group(); ph.position.set(-1.0, DESK_Y, 0.08); ph.rotation.y = 0.3; scene.add(ph);
+  const shell = new THREE.MeshPhysicalMaterial({ color: "#1e2229", roughness: 0.4, clearcoat: 0.5, clearcoatRoughness: 0.35 });
+  mesh(new RoundedBoxGeometry(0.17, 0.04, 0.16, 3, 0.012), shell, 0, 0.02, 0, ph);
+  const deck = new THREE.Group(); deck.position.set(0.03, 0.04, 0); deck.rotation.x = 0.2; ph.add(deck);   // the keypad leans towards you
+  mesh(new RoundedBoxGeometry(0.1, 0.012, 0.14, 2, 0.005), shell, 0, 0.002, 0, deck);
+  const phLcd = canvasTex(256, 96, (g, w, h) => { g.fillStyle = "#9fb3a0"; g.fillRect(0, 0, w, h); g.fillStyle = "#1c2a1e"; g.font = "600 30px IBM Plex Mono"; g.textBaseline = "middle"; g.fillText("APP. 4521", 14, 30); g.font = "500 22px IBM Plex Mono"; g.fillText("KEINE ANRUFE", 14, 68); });
+  mesh(new THREE.PlaneGeometry(0.07, 0.026), screenMatFor(phLcd, 0.6), 0, 0.0085, -0.045, deck).rotation.x = -Math.PI / 2;
+  const padMat = std({ color: "#c9ced6", roughness: 0.45 });
+  for (let i = 0; i < 12; i++) mesh(new RoundedBoxGeometry(0.018, 0.006, 0.013, 2, 0.003), padMat, -0.024 + (i % 3) * 0.024, 0.009, -0.012 + Math.floor(i / 3) * 0.02, deck);
+  mesh(new RoundedBoxGeometry(0.012, 0.005, 0.012, 2, 0.003), std({ color: "#d8322f", roughness: 0.45 }), 0.038, 0.009, -0.045, deck);   // a red message key
+  // the handset: a grip with the ear and mouth pieces at its ends, lying in the cradle along the left side
+  phone.hs = new THREE.Group(); phone.hs.position.set(-0.05, 0.052, 0); ph.add(phone.hs);
+  mesh(new RoundedBoxGeometry(0.036, 0.02, 0.2, 3, 0.009), shell, 0, 0, 0, phone.hs);
+  for (const z of [-0.078, 0.078]) mesh(new RoundedBoxGeometry(0.05, 0.026, 0.05, 3, 0.011), shell, 0, -0.005, z, phone.hs);
+  phone.hs.userData.y = phone.hs.position.y;
+  // the curly cord: a coil wound round a loose path from the mouthpiece end down to the side of the base
+  const path = new THREE.CatmullRomCurve3([[-0.06, 0.04, 0.1], [-0.085, 0.012, 0.12], [-0.1, 0.008, 0.07], [-0.096, 0.012, 0.0]].map((v) => new THREE.Vector3(...v)));
+  const fr = path.computeFrenetFrames(400, false), coil = [];
+  for (let i = 0; i <= 400; i++) {
+    const a = (i / 400) * Math.PI * 2 * 42, c = path.getPointAt(i / 400);
+    coil.push(c.addScaledVector(fr.normals[i], Math.cos(a) * 0.0045).addScaledVector(fr.binormals[i], Math.sin(a) * 0.0045));
+  }
+  mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(coil), 1600, 0.0012, 5), shell, 0, 0, 0, ph);
+  phone.g = ph;
+  interactive(ph, () => "Telephone: pick up", () => {
+    if (phone.busy) return;
+    phone.busy = true; sfx.dial();
+    const h = phone.hs, y0 = h.userData.y;
+    tween(0.4, (k) => { h.position.y = y0 + 0.07 * k; h.rotation.z = 0.5 * k; }, () => {
+      toast(null, "Dial tone. Nobody calls the 45th floor at this hour.");
+      setTimeout(() => tween(0.4, (k) => { h.position.y = y0 + 0.07 * (1 - k); h.rotation.z = 0.5 * (1 - k); }, () => (phone.busy = false)), 1800);
+    });
+  });
+
+  /* --- bull and bear in bronze, facing off on a black stone plinth, like the pair outside the Börse --- */
+  const bb = new THREE.Group(); bb.position.set(0.43, DESK_Y, -0.25); bb.rotation.y = -0.25; scene.add(bb);
+  const bronze = new THREE.MeshPhysicalMaterial({ color: "#b07a42", roughness: 0.38, metalness: 0.65, clearcoat: 0.3, clearcoatRoughness: 0.4 });
+  mesh(new RoundedBoxGeometry(0.36, 0.022, 0.095, 2, 0.004), new THREE.MeshPhysicalMaterial({ color: "#101114", roughness: 0.25, clearcoat: 1, clearcoatRoughness: 0.1 }), 0, 0.011, 0, bb);
+  const plate = canvasTex(512, 64, (g, w, h) => { g.fillStyle = "#b8963c"; g.fillRect(0, 0, w, h); g.fillStyle = "#2a1d08"; g.font = "600 30px IBM Plex Mono"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("BULLE & BÄR · BÖRSE FRANKFURT", w / 2, h / 2 + 2); });
+  mesh(new THREE.PlaneGeometry(0.12, 0.014), std({ map: plate, roughness: 0.3, metalness: 0.8, ...ONTOP }), 0, 0.011, 0.0478, bb);
+  const blob = (g, r, sx, sy, sz, x, y, z) => { const m = mesh(new THREE.SphereGeometry(r, 24, 16), bronze, x, y, z, g); m.scale.set(sx, sy, sz); return m; };
+  const limb = (g, r, len, x, y, z, rz = 0, rx = 0) => { const m = mesh(new THREE.CapsuleGeometry(r, len, 4, 10), bronze, x, y, z, g); m.rotation.set(rx, 0, rz); return m; };
+  const tube = (g, pts, r) => mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map((v) => new THREE.Vector3(...v))), 20, r, 6), bronze, 0, 0, 0, g);
+  // the bull, head down and charging, facing +x
+  const bull = new THREE.Group(); bull.position.set(-0.095, 0.022, 0); bull.scale.setScalar(0.9); bb.add(bull);
+  limb(bull, 0.03, 0.07, 0, 0.07, 0, Math.PI / 2);                     // a long, deep body
+  blob(bull, 0.037, 1, 1.05, 0.95, 0.035, 0.077, 0);                   // the muscle over the shoulders
+  limb(bull, 0.016, 0.03, 0.078, 0.052, 0, -1.0);                      // the head, lowered
+  blob(bull, 0.016, 1, 0.85, 1, 0.096, 0.034, 0);                      // muzzle
+  for (const sz of [-1, 1]) {
+    tube(bull, [[0.075, 0.068, sz * 0.012], [0.078, 0.077, sz * 0.04], [0.096, 0.09, sz * 0.048], [0.116, 0.094, sz * 0.034]], 0.0042);   // horns: out, then forward and up
+    blob(bull, 0.008, 1.4, 0.55, 1, 0.07, 0.07, sz * 0.026);            // ears
+    limb(bull, 0.009, 0.04, 0.05, 0.03, sz * 0.017, 0.3);               // front legs, braced
+    limb(bull, 0.0095, 0.04, -0.05, 0.03, sz * 0.017, -0.35);           // hind legs, pushing off
+  }
+  tube(bull, [[-0.095, 0.075, 0], [-0.115, 0.086, 0.005], [-0.126, 0.07, 0.01], [-0.12, 0.05, 0.012]], 0.0022);   // tail, lashing
+  // the bear, bulky and darker, one paw raised at the bull
+  const dark = bronze.clone(); dark.color.set("#5e3f26");
+  const bear = new THREE.Group(); bear.position.set(0.105, 0.022, 0); bear.rotation.y = Math.PI; bear.scale.setScalar(0.9); bb.add(bear);
+  const bblob = (...a) => (blob(bear, ...a).material = dark), blimb = (...a) => (limb(bear, ...a).material = dark);
+  blimb(0.038, 0.05, 0, 0.072, 0, Math.PI / 2);                         // body
+  bblob(0.036, 1, 1, 1, 0.03, 0.09, 0);                                 // shoulder hump
+  bblob(0.027, 1, 1, 1, 0.078, 0.086, 0);                               // head
+  blimb(0.011, 0.016, 0.106, 0.079, 0, Math.PI / 2);                    // snout
+  for (const sz of [-1, 1]) {
+    bblob(0.009, 1, 1, 0.55, 0.072, 0.11, sz * 0.017);                  // round ears
+    blimb(0.014, 0.03, -0.035, 0.03, sz * 0.022);                       // hind legs
+  }
+  blimb(0.014, 0.03, 0.04, 0.03, -0.022);                               // one front paw on the ground
+  blimb(0.012, 0.034, 0.078, 0.064, 0.026, -1.15);                      // the other raised at the bull
+  bblob(0.008, 1, 1, 1, -0.07, 0.08, 0);                                // stub of a tail
+  interactive(bb, () => "Bull and bear", () => toast(null, "Bulle und Bär: the pair from outside the Frankfurt Börse, in small."));
+
+  /* --- a printed DAX price list, left of the keyboard, with a pen on it --- */
+  const d = MARKET_SNAPSHOT, when = new Date(d.index.time * 1000);
+  const tex = canvasTex(1024, 1448, (g, w, h) => {
+    g.fillStyle = "#f3f2ed"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#111"; g.textBaseline = "alphabetic";
+    g.font = "700 46px IBM Plex Mono"; g.fillText("BÖRSE FRANKFURT", 70, 120);
+    g.font = "500 28px IBM Plex Mono"; g.fillStyle = "#444";
+    g.fillText(`Kursliste DAX · Schluss ${when.toLocaleDateString("de-DE")}`, 70, 165);
+    g.fillRect(70, 190, w - 140, 3);
+    g.font = "700 40px IBM Plex Mono"; g.fillStyle = "#111";
+    const ic = (d.index.price / d.index.prev - 1) * 100;
+    g.fillText(`DAX ${de(d.index.price, 2)}`, 70, 262);
+    g.fillStyle = ic >= 0 ? "#1d7a3a" : "#b3261e"; g.fillText(`${sign(ic)} %`, 640, 262);
+    // the day's curve
+    const S = d.index.series, lo = Math.min(...S), hi = Math.max(...S), cx = 70, cy = 300, cw = w - 140, ch = 230;
+    g.strokeStyle = "#ccc"; g.lineWidth = 1;
+    for (let i = 0; i <= 4; i++) { g.beginPath(); g.moveTo(cx, cy + (i * ch) / 4); g.lineTo(cx + cw, cy + (i * ch) / 4); g.stroke(); }
+    g.strokeStyle = "#111"; g.lineWidth = 3; g.beginPath();
+    S.forEach((v, i) => { const x = cx + (i / (S.length - 1)) * cw, y = cy + ch - ((v - lo) / (hi - lo)) * ch; i ? g.lineTo(x, y) : g.moveTo(x, y); });
+    g.stroke();
+    // the table
+    let y = 590;
+    g.font = "600 26px IBM Plex Mono"; g.fillStyle = "#444";
+    ["Wert", "Schluss", "Vortag", "%"].forEach((t, i) => { g.textAlign = i ? "right" : "left"; g.fillText(t, [70, 560, 780, 954][i], y); });
+    g.fillRect(70, y + 14, w - 140, 2);
+    g.font = "500 28px IBM Plex Mono";
+    d.stocks.forEach((x, i) => {
+      y += 48;
+      if (i % 2) { g.fillStyle = "#e7e5de"; g.fillRect(70, y - 34, w - 140, 48); }
+      const c = (x.price / x.prev - 1) * 100;
+      g.fillStyle = "#111"; g.textAlign = "left"; g.fillText(`${x.sym.padEnd(5)} ${x.name}`, 82, y);
+      g.textAlign = "right"; g.fillText(de(x.price, 2), 560, y); g.fillText(de(x.prev, 2), 780, y);
+      g.fillStyle = c >= 0 ? "#1d7a3a" : "#b3261e"; g.fillText(sign(c), 954, y);
+    });
+    g.textAlign = "left"; g.fillStyle = "#777"; g.font = "500 20px IBM Plex Mono";
+    g.fillText("Kurse verzögert · ohne Gewähr · Seite 1/1", 70, h - 36);
+    // notes in blue ink
+    g.fillStyle = "#1f3a8a"; g.strokeStyle = "#1f3a8a"; g.lineWidth = 4; g.font = "600 52px Caveat";
+    g.fillText("SAP unter 200 → nachkaufen?", 110, h - 160);
+    g.fillText("Airbus läuft!", 600, h - 95);
+    const ai = d.stocks.findIndex((x) => x.sym === "AIR");
+    if (ai >= 0) { g.beginPath(); g.ellipse(880, 590 + (ai + 1) * 48 - 10, 95, 32, -0.04, 0, 7); g.stroke(); }
+  });
+  tex.anisotropy = 16;
+  paper.g = new THREE.Group(); paper.g.position.set(-0.345, DESK_Y + 0.0038, 0.02); paper.g.rotation.y = 0.08; scene.add(paper.g);
+  const sheet = mesh(new THREE.PlaneGeometry(0.21, 0.297), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85, ...ONTOP }), 0, 0, 0, paper.g);
+  sheet.rotation.x = -Math.PI / 2;
+  // the pen: black lacquer, a gold clip and bands, lying across the sheet
+  const pen = new THREE.Group(); pen.position.set(0.035, 0.0045, -0.01); pen.rotation.y = 0.75; paper.g.add(pen);
+  const lacquer = new THREE.MeshPhysicalMaterial({ color: "#0b0c10", roughness: 0.15, clearcoat: 1, clearcoatRoughness: 0.05 });
+  const gold = std({ color: "#c9a24e", roughness: 0.25, metalness: 1 });
+  const along = (geo, mat, x) => { const m = mesh(geo, mat, x, 0, 0, pen); m.rotation.z = Math.PI / 2; return m; };
+  along(new THREE.CylinderGeometry(0.0045, 0.0045, 0.12, 20), lacquer, 0);
+  along(new THREE.CylinderGeometry(0.0046, 0.0046, 0.003, 20), gold, 0.012);
+  along(new THREE.CylinderGeometry(0.0046, 0.0046, 0.0015, 20), gold, -0.058);
+  along(new THREE.CylinderGeometry(0.0045, 0.0015, 0.016, 20), lacquer, -0.068);      // the tapered grip
+  along(new THREE.CylinderGeometry(0.0015, 0.0003, 0.004, 10), gold, -0.078);          // the tip
+  along(new THREE.SphereGeometry(0.0045, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), lacquer, 0.06);
+  mesh(new THREE.BoxGeometry(0.04, 0.0012, 0.0022), gold, 0.038, 0.0055, 0, pen);         // the clip
+  paper.center = () => paper.g.position.clone();
+  interactive(paper.g, () => (view === "paper" ? null : "Price list: read it"), () => setView("paper"));
 }
 
 /* ================= desk world clock: Frankfurt, London, New York, Tokyo ================= */
@@ -2265,7 +2429,7 @@ function buildFrankfurt(D) {
     const r = cityPick(raycaster.ray);
     if (r) hits.push({ distance: r.t, object: picker, point: r.p, pick: r });
   };
-  interactive(picker, () => city.hover, () => city.hoverInfo && toast(null, city.hoverInfo));
+  interactive(picker, () => city.hover, () => (city.tower ? playFilm() : city.hoverInfo && toast(null, city.hoverInfo)));
   city.picker = picker;
   root.add(picker);
   city.ready = true;
@@ -2274,6 +2438,7 @@ function buildFrankfurt(D) {
 const _o = new THREE.Vector3(), _d = new THREE.Vector3();
 function cityPick(ray) {
   _o.copy(ray.origin); _d.copy(ray.direction);
+  city.tower = false;
   let best = null;
   for (const b of city.bld) {
     // slab test against the bounding box first
@@ -2325,9 +2490,11 @@ function cityPick(ray) {
       return near ? { t, p: new THREE.Vector3(x, D.G, z) } : null;
     }
   }
-  if (!best || best.b.name === undefined) { city.hover = null; return best ? { t: best.t, p: _o.clone().addScaledVector(_d, best.t) } : null; }
+  // a tower: anything named, or taller than 40 m. Clicking one plays the screen recording.
+  city.tower = !!best && (best.b.name !== undefined || best.b.y1 - best.b.y0 > 40);
+  if (!best || best.b.name === undefined) { city.hover = city.tower ? "Tower: play the recording ▶" : null; return best ? { t: best.t, p: _o.clone().addScaledVector(_d, best.t) } : null; }
   const [label, info] = D.names[best.b.name];
-  city.hover = label;
+  city.hover = `${label}: play the recording ▶`;
   city.hoverInfo = `${label}. ${info}`;
   return { t: best.t, p: _o.clone().addScaledVector(_d, best.t) };
 }
@@ -2486,7 +2653,7 @@ function drawScreen() {
   // title bar
   sx.fillStyle = BLU; sx.fillRect(20, 70, SW - 40, 36);
   sx.font = TF(20, 600); sx.fillStyle = "#ffffff";
-  const title = term.page === "home" ? "MAIN MENU" : CONTENT[term.page].title.toUpperCase();
+  const title = term.page === "home" ? "PERSONAL HOMEPAGE" : CONTENT[term.page].title.toUpperCase();
   sx.fillText(`${SITE.toUpperCase()}  ·  ${title}`, 30, 77);
   const c = idxChg(), q = `DAX ${de(mkt.idx, 1)} ${sign(c)}%`, tm = hhmm();
   const tw = sx.measureText(tm).width;
@@ -2512,7 +2679,9 @@ function drawScreen() {
   sx.save(); sx.beginPath(); sx.rect(20, top, SW - 40, bottom - top); sx.clip();
   let y = top + 14 - term.scroll;
   if (term.page === "home") {
-    sx.fillStyle = WHT; sx.font = TF(50, 700); sx.fillText(SITE.toUpperCase(), left, y); y += 70;
+    sx.fillStyle = YEL; sx.font = TF(18, 600); sx.fillText("PERSONAL HOMEPAGE <GO>", left, y); y += 30;
+    sx.fillStyle = WHT; sx.font = TF(50, 700); sx.fillText(SITE.toUpperCase(), left, y); y += 60;
+    sx.fillStyle = "#8c8c8c"; sx.font = TF(19, 600); sx.fillText("AI & DATA ENGINEER  ·  FRANKFURT AM MAIN", left, y); y += 40;
     sx.fillStyle = AMB; sx.font = TF(22);
     for (const l of wrap(CONTENT.about ? CONTENT.about.blocks[0].text : "", maxW)) { sx.fillText(l, left, y); y += 30; }
     y += 22; sx.fillStyle = WHT; sx.font = TF(19, 600);
@@ -2815,7 +2984,7 @@ function setExposure(e) {
 function setView(v, page) {
   if (!roomReady) return;
   if (v !== "screen") termPanel.hidden = true;
-  setExposure(v === "badge" ? 0.45 : v === "photo" && page === "father" ? 0.6 : v === "clock" ? 0.85 : 1.1);
+  setExposure(v === "badge" ? 0.45 : v === "paper" ? 0.6 : v === "photo" && page === "father" ? 0.6 : v === "clock" ? 0.85 : 1.1);
   if (v !== "window" && lensFov) zoomFov(0);
   if (v === "screen") {
     if (view !== "screen") moveCam(screenCamPos(), SCREEN_CENTER, 1.1);
@@ -2828,8 +2997,12 @@ function setView(v, page) {
     if (page === "corner") moveCam(new THREE.Vector3(8.2, 1.6, 0.12), new THREE.Vector3(400, G + 140, -60), 1.4);
     else moveCam(new THREE.Vector3(1.58, 1.62, -0.28), new THREE.Vector3(m[0], G, m[1]), 1.4);   // between two mullions, right of the screens
     toast(null, page === "corner"
-      ? "The Commerzbank Tower, 80 m away. Drag to look round; point at a tower or a street to see its name."
-      : "45th floor. Straight down: the Roßmarkt and Gutenberg's monument, the Hauptwache beyond. Drag to look round; point at a tower or a street to see its name.");
+      ? "The Commerzbank Tower, 80 m away. Point at a tower or a street to see its name."
+      : "45th floor. Straight down: the Roßmarkt and Gutenberg's monument, the Hauptwache beyond. Point at a tower or a street to see its name.");
+  } else if (v === "paper") {
+    view = "paper"; controls.enabled = false;
+    const c = paper.center(), r = paper.g.rotation.y;   // square to the sheet, so the rows read level
+    moveCam(c.clone().add(new THREE.Vector3(Math.sin(r) * 0.07, 0.36 / Math.min(1, camera.aspect * 1.4), Math.cos(r) * 0.07)), c, 1.1);
   } else if (v === "badge") {
     view = "badge"; controls.enabled = false;
     const c = badge.card.position;
@@ -2861,7 +3034,6 @@ function setView(v, page) {
     document.querySelectorAll("[data-go]").forEach((b) => b.setAttribute("aria-pressed", "false"));
   }
   $("#back").hidden = view === "room";
-  $("#hint").hidden = view !== "room";
 }
 $("#back").addEventListener("click", () => { if (mode === "2d") { go("home"); $("#back").hidden = true; } else setView("room"); });
 document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => {
@@ -2870,6 +3042,20 @@ document.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click"
   if (!entered) enterBtn.click();
   setView("screen", b.dataset.go);
 }));
+
+/* ================= the screen recording, behind the towers ================= */
+const film = $("#film"), filmV = $("#film-v");
+function playFilm() {
+  tip.hidden = true;
+  film.hidden = false;
+  filmV.currentTime = 0;
+  filmV.play().catch(() => {});
+  $("#film-x").focus({ preventScroll: true });
+}
+function closeFilm() { filmV.pause(); film.hidden = true; }
+$("#film-x").addEventListener("click", closeFilm);
+film.addEventListener("click", (e) => { if (e.target === film) closeFilm(); });
+filmV.addEventListener("ended", closeFilm);
 
 /* ================= toast ================= */
 let toastTimer;
@@ -2954,6 +3140,7 @@ function pressKey(k) {
   pressed.push({ m, t: 0.12 });
 }
 addEventListener("keydown", (e) => {
+  if (!film.hidden) { if (e.key === "Escape") closeFilm(); return; }
   if (!(roomReady || mode === "2d") || !entered || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.target.closest && e.target.closest("button, a") && (e.key === "Enter" || e.key === " ")) return;
   const k = e.key;
